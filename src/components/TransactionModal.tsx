@@ -140,6 +140,16 @@ export function TransactionModal({
     }
   }, [transactionToEdit, isOpen]);
 
+  // Reset form when opening for new transaction or closing
+  useEffect(() => {
+    if (isOpen && !transactionToEdit) {
+      resetForm();
+    }
+    if (!isOpen) {
+      resetForm();
+    }
+  }, [isOpen, transactionToEdit]);
+
   const resetForm = () => {
     setType('income');
     setDescription('');
@@ -151,6 +161,18 @@ export function TransactionModal({
     setStatus('completed');
     setDate(new Date());
     setError(null);
+    
+    // Força limpeza do DOM para garantir que não há sugestões
+    const descriptionInput = document.getElementById('description') as HTMLInputElement;
+    const beneficiaryInput = document.getElementById('beneficiary') as HTMLInputElement;
+    if (descriptionInput) {
+      descriptionInput.value = '';
+      descriptionInput.setAttribute('autocomplete', 'off');
+    }
+    if (beneficiaryInput) {
+      beneficiaryInput.value = '';
+      beneficiaryInput.setAttribute('autocomplete', 'off');
+    }
   };
 
   const handleSubmit = async () => {
@@ -343,6 +365,8 @@ export function TransactionModal({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ex: Pagamento de aluguel"
+                  autoComplete="off"
+                  key="description-input"
                 />
               </div>
               
@@ -383,6 +407,8 @@ export function TransactionModal({
                     value={beneficiary}
                     onChange={(e) => setBeneficiary(e.target.value)}
                     placeholder="Ex: Fornecedor XYZ"
+                    autoComplete="off"
+                    key="beneficiary-input"
                   />
                 </div>
                 
