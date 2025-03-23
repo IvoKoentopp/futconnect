@@ -1,8 +1,8 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import legacy from '@vitejs/plugin-legacy';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -12,6 +12,11 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    legacy({
+      targets: ['ios >= 12', 'safari >= 12', 'chrome >= 60', 'firefox >= 60'],
+      polyfills: ['es.promise', 'es.array.iterator'],
+      modernPolyfills: true
+    }),
     mode === 'development' &&
     componentTagger(),
   ].filter(Boolean),
@@ -24,6 +29,7 @@ export default defineConfig(({ mode }) => ({
     include: ['zod', '@hookform/resolvers/zod', 'react-hook-form'],
   },
   build: {
+    target: ['ios12', 'safari12'],
     commonjsOptions: {
       include: [/node_modules/],
     },
