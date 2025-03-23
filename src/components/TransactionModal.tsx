@@ -55,13 +55,11 @@ export function TransactionModal({
   const [isLoading, setIsLoading] = useState(true);
   const [bankAccounts, setBankAccounts] = useState<{id: string, name: string}[]>([]);
   const [chartOfAccounts, setChartOfAccounts] = useState<{id: string, description: string}[]>([]);
-  const [descriptions, setDescriptions] = useState<string[]>([]);
-  const [beneficiaries, setBeneficiaries] = useState<string[]>([]);
   
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Fetch bank accounts, chart of accounts, and previous descriptions/beneficiaries
+  // Fetch bank accounts and chart of accounts
   useEffect(() => {
     const loadData = async () => {
       if (!user?.activeClub?.id || !isOpen) return;
@@ -92,58 +90,6 @@ export function TransactionModal({
         if (chartAccountsError) throw chartAccountsError;
         
         setChartOfAccounts(chartAccountsData);
-
-        // Fetch unique descriptions from previous transactions
-        console.log('Buscando descrições para o clube:', user.activeClub.id);
-        const { data: descriptionsData, error: descriptionsError } = await supabase
-          .from('transactions')
-          .select('description')
-          .eq('club_id', user.activeClub.id)
-          .not('description', 'is', null)
-          .not('description', 'eq', '')
-          .order('description');
-        
-        if (descriptionsError) {
-          console.error('Erro ao buscar descrições:', descriptionsError);
-          throw descriptionsError;
-        }
-        
-        console.log('Descrições encontradas:', descriptionsData);
-        
-        // Usar Set para remover duplicatas e filtrar valores vazios
-        const uniqueDescriptions = [...new Set(
-          (descriptionsData || [])
-            .map(d => (d as { description: string }).description.trim())
-            .filter(d => d !== '')
-        )].sort();
-        console.log('Descrições únicas:', uniqueDescriptions);
-        setDescriptions(uniqueDescriptions);
-
-        // Fetch unique beneficiaries from previous transactions
-        console.log('Buscando favorecidos para o clube:', user.activeClub.id);
-        const { data: beneficiariesData, error: beneficiariesError } = await supabase
-          .from('transactions')
-          .select('beneficiary')
-          .eq('club_id', user.activeClub.id)
-          .not('beneficiary', 'is', null)
-          .not('beneficiary', 'eq', '')
-          .order('beneficiary');
-        
-        if (beneficiariesError) {
-          console.error('Erro ao buscar favorecidos:', beneficiariesError);
-          throw beneficiariesError;
-        }
-        
-        console.log('Favorecidos encontrados:', beneficiariesData);
-        
-        // Usar Set para remover duplicatas e filtrar valores vazios
-        const uniqueBeneficiaries = [...new Set(
-          (beneficiariesData || [])
-            .map(b => (b as { beneficiary: string }).beneficiary.trim())
-            .filter(b => b !== '')
-        )].sort();
-        console.log('Favorecidos únicos:', uniqueBeneficiaries);
-        setBeneficiaries(uniqueBeneficiaries);
 
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
@@ -397,13 +343,7 @@ export function TransactionModal({
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Ex: Pagamento de aluguel"
-                  list="descriptions-list"
                 />
-                <datalist id="descriptions-list">
-                  {descriptions.map((desc, index) => (
-                    <option key={index} value={desc} />
-                  ))}
-                </datalist>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -443,13 +383,7 @@ export function TransactionModal({
                     value={beneficiary}
                     onChange={(e) => setBeneficiary(e.target.value)}
                     placeholder="Ex: Fornecedor XYZ"
-                    list="beneficiaries-list"
                   />
-                  <datalist id="beneficiaries-list">
-                    {beneficiaries.map((ben, index) => (
-                      <option key={index} value={ben} />
-                    ))}
-                  </datalist>
                 </div>
                 
                 <div className="flex flex-col space-y-1.5">
