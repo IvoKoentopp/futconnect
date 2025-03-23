@@ -97,7 +97,7 @@ export function TransactionModal({
         console.log('Buscando descrições para o clube:', user.activeClub.id);
         const { data: descriptionsData, error: descriptionsError } = await supabase
           .from('transactions')
-          .select('description, club_id')
+          .select('description')
           .eq('club_id', user.activeClub.id)
           .not('description', 'is', null)
           .not('description', 'eq', '')
@@ -111,11 +111,9 @@ export function TransactionModal({
         console.log('Descrições encontradas:', descriptionsData);
         
         // Usar Set para remover duplicatas e filtrar valores vazios
-        // Garantir que só pegamos descrições do clube atual
         const uniqueDescriptions = [...new Set(
-          descriptionsData
-            .filter(d => d.club_id === user.activeClub.id)
-            .map(d => d.description.trim())
+          (descriptionsData || [])
+            .map(d => (d as { description: string }).description.trim())
             .filter(d => d !== '')
         )].sort();
         console.log('Descrições únicas:', uniqueDescriptions);
@@ -125,7 +123,7 @@ export function TransactionModal({
         console.log('Buscando favorecidos para o clube:', user.activeClub.id);
         const { data: beneficiariesData, error: beneficiariesError } = await supabase
           .from('transactions')
-          .select('beneficiary, club_id')
+          .select('beneficiary')
           .eq('club_id', user.activeClub.id)
           .not('beneficiary', 'is', null)
           .not('beneficiary', 'eq', '')
@@ -139,11 +137,9 @@ export function TransactionModal({
         console.log('Favorecidos encontrados:', beneficiariesData);
         
         // Usar Set para remover duplicatas e filtrar valores vazios
-        // Garantir que só pegamos favorecidos do clube atual
         const uniqueBeneficiaries = [...new Set(
-          beneficiariesData
-            .filter(b => b.club_id === user.activeClub.id)
-            .map(b => b.beneficiary.trim())
+          (beneficiariesData || [])
+            .map(b => (b as { beneficiary: string }).beneficiary.trim())
             .filter(b => b !== '')
         )].sort();
         console.log('Favorecidos únicos:', uniqueBeneficiaries);
