@@ -15,13 +15,19 @@ if (!Object.fromEntries) {
 
 // Add other polyfills as needed
 if (!String.prototype.replaceAll) {
-  String.prototype.replaceAll = function(str: string, newStr: string) {
-    // If a regex pattern
-    if (Object.prototype.toString.call(str).toLowerCase() === '[object regexp]') { 
-      return this.replace(str, newStr);
+  String.prototype.replaceAll = function(
+    searchValue: string | RegExp,
+    replaceValue: any
+  ): string {
+    // Se for uma RegExp
+    if (searchValue instanceof RegExp) {
+      return this.replace(searchValue, replaceValue);
     }
-    // If a string
-    return this.replace(new RegExp(str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), newStr);
+    // Se for uma string
+    return this.replace(
+      new RegExp(searchValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+      replaceValue
+    );
   };
 }
 

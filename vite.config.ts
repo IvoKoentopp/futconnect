@@ -13,9 +13,26 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     legacy({
-      targets: ['ios >= 12', 'safari >= 12', 'chrome >= 60', 'firefox >= 60'],
-      polyfills: ['es.promise', 'es.array.iterator'],
-      modernPolyfills: true
+      targets: ['ios >= 12', 'safari >= 12'],
+      modernPolyfills: true,
+      renderLegacyChunks: true,
+      polyfills: [
+        'es.symbol',
+        'es.array.filter',
+        'es.promise',
+        'es.promise.finally',
+        'es/map',
+        'es/set',
+        'es.array.for-each',
+        'es.array.iterator',
+        'es.array.map',
+        'es.object.assign',
+        'es.object.keys',
+        'es.string.iterator',
+        'web.dom-collections.iterator',
+        'es.array.includes',
+        'es.string.includes'
+      ]
     }),
     mode === 'development' &&
     componentTagger(),
@@ -29,7 +46,27 @@ export default defineConfig(({ mode }) => ({
     include: ['zod', '@hookform/resolvers/zod', 'react-hook-form'],
   },
   build: {
-    target: ['ios12', 'safari12'],
+    target: 'es2015',
+    minify: 'terser',
+    terserOptions: {
+      parse: {
+        ecma: 2015
+      },
+      compress: {
+        ecma: 5,
+        warnings: false,
+        comparisons: false,
+        inline: 2
+      },
+      mangle: {
+        safari10: true
+      },
+      output: {
+        ecma: 5,
+        comments: false,
+        ascii_only: true
+      }
+    },
     commonjsOptions: {
       include: [/node_modules/],
     },
