@@ -38,7 +38,7 @@ import ConfirmationSuccess from "./pages/ConfirmationSuccess";
 import Sponsors from "./pages/Sponsors";
 import UserGuide from "./pages/UserGuide";
 import DebugLogger from './components/DebugLogger';
-import { ThemeProvider } from './components/ThemeProvider';
+import { SafeThemeProvider } from './components/SafeThemeProvider';
 
 // Create a new QueryClient instance with more robust caching
 const queryClient = new QueryClient({
@@ -56,7 +56,7 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="light">
+    <SafeThemeProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -275,7 +275,7 @@ const App = () => (
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
-    </ThemeProvider>
+    </SafeThemeProvider>
     <DebugLogger />
   </QueryClientProvider>
 );
