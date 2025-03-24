@@ -194,28 +194,33 @@ const GameStatistics = () => {
             )
           `)
           .in('game_id', completedGameIds)
-          .neq('members.status', 'Sistema');  // Exclui apenas membros com status Sistema
+          .neq('members.status', 'Sistema');  // Exclui membros com status Sistema
         
         if (participationsError) throw participationsError;
         
-        const filteredParticipations = participations || [];
+        // Garante que temos dados válidos e exclui qualquer participação que não tenha membro associado
+        const filteredParticipations = (participations || []).filter(p => p.members !== null);
         
-        console.log('Total participants:', filteredParticipations.length);
+        console.log('Total participants (excluding Sistema):', filteredParticipations.length);
         
         // Calculate total confirmed and not confirmed participants per game
         const gameParticipationMap: Record<string, { confirmed: number, notConfirmed: number }> = {};
         
+        // Processa apenas participações com membros válidos
         filteredParticipations.forEach(p => {
           if (!gameParticipationMap[p.game_id]) {
             gameParticipationMap[p.game_id] = { confirmed: 0, notConfirmed: 0 };
           }
           
+          // Conta apenas se o membro não for Sistema
           if (p.status === 'confirmed') {
             gameParticipationMap[p.game_id].confirmed += 1;
           } else if (p.status === 'declined') {
             gameParticipationMap[p.game_id].notConfirmed += 1;
           }
         });
+
+        console.log('Game participation map:', gameParticipationMap);
         
         // Calculate averages
         let totalConfirmed = 0;
