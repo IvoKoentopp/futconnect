@@ -79,15 +79,15 @@ const clubNavItems = [{
   }]
 }, {
   name: 'Mensalidades',
-  icon: <FileText size={20} />,
+  icon: <Receipt size={20} />,
   submenu: [{
-    name: 'Lista',
-    path: '/monthly-fees',
-    icon: <List size={16} />
-  }, {
     name: 'Criar',
     path: '/monthly-fees/create',
     icon: <PlusCircle size={16} />
+  }, {
+    name: 'Listagem',
+    path: '/monthly-fees',
+    icon: <List size={16} />
   }]
 }, {
   name: 'Configurações',
