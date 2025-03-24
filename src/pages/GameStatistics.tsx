@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar, Users, BarChart, X, CheckCheck, Circle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -186,12 +185,20 @@ const GameStatistics = () => {
         // Fetch all participants with their member details for completed games
         const { data: participations, error: participationsError } = await supabase
           .from('game_participants')
-          .select('*, members!inner(*)')
-          .in('game_id', completedGameIds);
+          .select(`
+            *,
+            members (
+              id,
+              name,
+              status
+            )
+          `)
+          .in('game_id', completedGameIds)
+          .eq('members.status', 'active');
         
         if (participationsError) throw participationsError;
         
-        // Make sure to exclude system members based on their status - using the correct term "Sistema"
+        // Make sure to exclude system members based on their status
         const filteredParticipations = participations?.filter(p => 
           p.members?.status !== 'Sistema'
         ) || [];
