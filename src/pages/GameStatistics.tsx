@@ -194,17 +194,13 @@ const GameStatistics = () => {
             )
           `)
           .in('game_id', completedGameIds)
-          .eq('members.status', 'Ativo');
+          .neq('members.status', 'Sistema');  // Exclui apenas membros com status Sistema
         
         if (participationsError) throw participationsError;
         
-        // Make sure to exclude system members based on their status
-        const filteredParticipations = participations?.filter(p => 
-          p.members?.status !== 'Sistema'
-        ) || [];
+        const filteredParticipations = participations || [];
         
-        console.log('Total participants before filtering:', participations?.length);
-        console.log('Total participants after filtering out system members:', filteredParticipations.length);
+        console.log('Total participants:', filteredParticipations.length);
         
         // Calculate total confirmed and not confirmed participants per game
         const gameParticipationMap: Record<string, { confirmed: number, notConfirmed: number }> = {};
