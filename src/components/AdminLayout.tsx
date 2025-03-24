@@ -61,18 +61,21 @@ const clubNavItems = [{
   name: 'Financeiro',
   icon: <DollarSign size={20} />,
   submenu: [{
-    name: 'Movimentações',
-    path: '/finances'
-  }, {
     name: 'Plano de Contas',
-    path: '/chart-of-accounts'
+    path: '/chart-of-accounts',
+    icon: <Receipt size={16} />
   }, {
     name: 'Contas Bancárias',
-    path: '/bank-accounts'
+    path: '/bank-accounts',
+    icon: <DollarSign size={16} />
+  }, {
+    name: 'Movimentações',
+    path: '/finances',
+    icon: <DollarSign size={16} />
   }, {
     name: 'DRE',
     path: '/financial-statement',
-    icon: <Receipt size={16} />
+    icon: <BarChart2 size={16} />
   }]
 }, {
   name: 'Mensalidades',
