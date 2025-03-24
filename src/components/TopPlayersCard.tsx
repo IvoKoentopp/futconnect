@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy, Award, Star, User } from 'lucide-react';
@@ -74,7 +73,7 @@ const TopPlayersCard: React.FC<TopPlayersCardProps> = ({ topPlayers, isLoading, 
       <CardHeader className="pb-2">
         <CardTitle className="text-base md:text-lg flex items-center">
           <Trophy className="mr-2 h-5 w-5 text-futconnect-600" />
-          Top Jogadores
+          Top Participantes
         </CardTitle>
         <CardDescription className="text-xs md:text-sm">
           Jogadores com mais participações
