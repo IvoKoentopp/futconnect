@@ -17,13 +17,13 @@ const clubNavItems = [{
   name: 'Sócios',
   icon: <Users size={20} />,
   submenu: [{
-    name: 'Lista de Sócios',
-    path: '/members/list',
-    icon: <List size={16} />
-  }, {
     name: 'Novo Sócio',
     path: '/members/new',
     icon: <UserPlus size={16} />
+  }, {
+    name: 'Lista de Sócios',
+    path: '/members/list',
+    icon: <List size={16} />
   }, {
     name: 'Perfil de Sócios',
     path: '/members/profile',
