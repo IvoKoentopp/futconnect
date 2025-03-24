@@ -1,4 +1,3 @@
-
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
@@ -33,130 +32,133 @@ export const exportElementToPdf = async (
     const footerElements = document.querySelectorAll('.pdf-footer');
     footerElements.forEach(el => (el as HTMLElement).classList.remove('hidden'));
 
-    // Apply enhanced no-break styles to tables for PDF generation
-    const tableElements = element.querySelectorAll('table');
-    tableElements.forEach(table => {
-      table.classList.add('pdf-table-no-break');
-      (table as HTMLElement).style.pageBreakInside = 'avoid';
-      (table as HTMLElement).style.breakInside = 'avoid';
-    });
-    
-    // Apply PDF-specific styles to table rows - enhanced settings
-    const tableRows = element.querySelectorAll('tr');
-    tableRows.forEach(row => {
-      row.classList.add('pdf-table-row');
-      (row as HTMLElement).style.pageBreakInside = 'avoid';
-      (row as HTMLElement).style.breakInside = 'avoid';
-    });
-    
-    // Specific handling for player ranking tables
-    const rankingTables = element.querySelectorAll('.player-ranking-table');
-    rankingTables.forEach(table => {
-      table.setAttribute('data-html2canvas-ignore-children', 'false');
-      (table as HTMLElement).style.pageBreakInside = 'avoid';
-      (table as HTMLElement).style.breakInside = 'avoid';
-      (table as HTMLElement).style.display = 'table';
+    // Prepare tables for PDF generation
+    const tables = element.querySelectorAll('table');
+    tables.forEach(table => {
+      // Adiciona classe específica para tabelas no PDF
+      table.classList.add('pdf-table');
+      // Define estilos inline para garantir que a tabela não quebre
+      Object.assign(table.style, {
+        pageBreakInside: 'avoid',
+        breakInside: 'avoid',
+        display: 'table',
+        width: '100%',
+        marginBottom: '20px' // Espaço entre tabelas
+      });
+
+      // Força todas as células a terem a mesma largura
+      const cells = table.querySelectorAll('td, th');
+      const cellWidth = `${100 / table.rows[0]?.cells.length}%`;
+      cells.forEach(cell => {
+        (cell as HTMLElement).style.width = cellWidth;
+        Object.assign((cell as HTMLElement).style, {
+          whiteSpace: 'normal',
+          wordBreak: 'break-word'
+        });
+      });
+
+      // Adiciona bordas mais visíveis para o PDF
+      table.style.borderCollapse = 'collapse';
+      cells.forEach(cell => {
+        (cell as HTMLElement).style.border = '1px solid #ddd';
+      });
     });
 
-    // Wait longer for styles to apply
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Wait for styles to apply
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    // Use improved canvas settings for better table handling
+    // Use improved canvas settings
     const canvas = await html2canvas(element, {
-      scale: 2, // Higher scale for better quality
+      scale: 2,
       useCORS: true,
       logging: false,
       allowTaint: true,
       backgroundColor: '#ffffff',
       onclone: (clonedDoc) => {
-        // Enhanced handling for tables in cloned document
-        const tables = clonedDoc.querySelectorAll('table');
-        tables.forEach(table => {
-          (table as HTMLElement).style.width = '100%';
-          (table as HTMLElement).style.pageBreakInside = 'avoid';
-          (table as HTMLElement).style.breakInside = 'avoid';
-          table.setAttribute('data-html2canvas-ignore-children', 'false');
-        });
-        
-        // Special handling for player ranking tables
-        const playerTables = clonedDoc.querySelectorAll('.player-ranking-table');
-        playerTables.forEach(table => {
+        // Ensure tables in cloned document maintain their styles
+        const clonedTables = clonedDoc.querySelectorAll('table');
+        clonedTables.forEach(table => {
           (table as HTMLElement).style.pageBreakInside = 'avoid !important';
           (table as HTMLElement).style.breakInside = 'avoid !important';
-          
-          // Force table rows to stick together
-          const rows = table.querySelectorAll('tr');
-          rows.forEach(row => {
-            (row as HTMLElement).style.pageBreakInside = 'avoid !important';
-            (row as HTMLElement).style.breakInside = 'avoid !important';
-          });
+          (table as HTMLElement).style.marginBottom = '20px';
         });
-        
-        // Ensure the whole content is captured properly
-        const content = clonedDoc.getElementById('performance-content');
+
+        // Ensure content is properly captured
+        const content = clonedDoc.getElementById(elementId);
         if (content) {
-          (content as HTMLElement).style.overflow = 'visible';
-          (content as HTMLElement).style.height = 'auto';
+          content.style.overflow = 'visible';
+          content.style.height = 'auto';
         }
-      },
-      ignoreElements: (element) => {
-        // Ignore any elements with data-html2canvas-ignore attribute
-        return element.hasAttribute('data-html2canvas-ignore');
       }
     });
-    
-    // Reset the DOM after capturing the image
+
+    // Reset styles after capturing
     document.body.classList.remove('generating-pdf');
     pdfHeaderElements.forEach(el => (el as HTMLElement).style.display = 'none');
     footerElements.forEach(el => (el as HTMLElement).classList.add('hidden'));
-    tableElements.forEach(table => {
-      table.classList.remove('pdf-table-no-break');
-      (table as HTMLElement).style.pageBreakInside = '';
-      (table as HTMLElement).style.breakInside = '';
-    });
-    tableRows.forEach(row => {
-      row.classList.remove('pdf-table-row');
-      (row as HTMLElement).style.pageBreakInside = '';
-      (row as HTMLElement).style.breakInside = '';
-    });
-    rankingTables.forEach(table => {
-      table.removeAttribute('data-html2canvas-ignore-children');
-      (table as HTMLElement).style.pageBreakInside = '';
-      (table as HTMLElement).style.breakInside = '';
+    tables.forEach(table => {
+      table.classList.remove('pdf-table');
+      table.removeAttribute('style');
+      table.querySelectorAll('td, th').forEach(cell => {
+        (cell as HTMLElement).removeAttribute('style');
+      });
     });
 
-    // Calculate the PDF dimensions based on the element aspect ratio
+    // Calculate PDF dimensions
     const imgData = canvas.toDataURL('image/png');
+    const pageWidth = orientation === 'p' ? 210 : 297;
+    const pageHeight = orientation === 'p' ? 297 : 210;
     
-    // Set dimensions based on orientation
-    const pageWidth = orientation === 'p' ? 210 : 297; // A4 width in mm (portrait or landscape)
-    const pageHeight = orientation === 'p' ? 297 : 210; // A4 height in mm (portrait or landscape)
-    
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    // Create PDF document of A4 size with specified orientation
+    // Calculate image dimensions maintaining aspect ratio
+    const aspectRatio = canvas.height / canvas.width;
+    const imgWidth = pageWidth - 20; // 10mm margin on each side
+    const imgHeight = imgWidth * aspectRatio;
+
+    // Create PDF
     const pdf = new jsPDF(orientation, 'mm', 'a4');
     
-    // Split the image into multiple pages if needed
-    let heightLeft = imgHeight;
-    let position = 0;
-    let pageNumber = 1;
-
-    // Add first page
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-
-    // Add additional pages if content overflows
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight; // top of next page
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-      pageNumber++;
+    // Calculate number of pages needed
+    const pagesNeeded = Math.ceil(imgHeight / (pageHeight - 20)); // 10mm margin top and bottom
+    
+    // Add content to pages
+    for (let i = 0; i < pagesNeeded; i++) {
+      if (i > 0) pdf.addPage();
+      
+      // Calculate position and height for current page
+      const sourceY = i * (pageHeight - 20) / aspectRatio;
+      const sourceHeight = Math.min(
+        (pageHeight - 20) / aspectRatio,
+        canvas.height - sourceY
+      );
+      
+      // Create temporary canvas for this page section
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = sourceHeight;
+      const ctx = tempCanvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.drawImage(
+          canvas,
+          0, sourceY, canvas.width, sourceHeight,
+          0, 0, canvas.width, sourceHeight
+        );
+        
+        const pageImgData = tempCanvas.toDataURL('image/png');
+        const pageImgHeight = (sourceHeight * imgWidth) / canvas.width;
+        
+        pdf.addImage(
+          pageImgData,
+          'PNG',
+          10, // left margin
+          10, // top margin
+          imgWidth,
+          pageImgHeight
+        );
+      }
     }
 
-    // Save the PDF file
+    // Save the PDF
     pdf.save(`${filename}.pdf`);
     toast.success('PDF gerado com sucesso!');
   } catch (error) {
