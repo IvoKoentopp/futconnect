@@ -45,6 +45,10 @@ const clubNavItems = [{
     path: '/games',
     icon: <ListChecks size={16} />
   }, {
+    name: 'Destaque da Partida',
+    path: '/game-highlights',
+    icon: <Star size={16} />
+  }, {
     name: 'Estatísticas',
     path: '/game-statistics',
     icon: <BarChart2 size={16} />
@@ -52,10 +56,6 @@ const clubNavItems = [{
     name: 'Performance',
     path: '/game-performance',
     icon: <Trophy size={16} />
-  }, {
-    name: 'Destaque da Partida',
-    path: '/game-highlights',
-    icon: <Star size={16} />
   }]
 }, {
   name: 'Financeiro',
