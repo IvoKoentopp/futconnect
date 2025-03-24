@@ -194,7 +194,7 @@ const GameStatistics = () => {
             )
           `)
           .in('game_id', completedGameIds)
-          .eq('members.status', 'active');
+          .eq('members.status', 'Ativo');
         
         if (participationsError) throw participationsError;
         
