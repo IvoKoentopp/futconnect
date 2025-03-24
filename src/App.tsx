@@ -37,6 +37,7 @@ import GameConfirmation from "./pages/GameConfirmation";
 import ConfirmationSuccess from "./pages/ConfirmationSuccess";
 import Sponsors from "./pages/Sponsors";
 import UserGuide from "./pages/UserGuide";
+import DebugLogger from './components/DebugLogger';
 
 // Create a new QueryClient instance with more robust caching
 const queryClient = new QueryClient({
@@ -271,6 +272,7 @@ const App = () => (
           </Routes>
         </AuthProvider>
       </BrowserRouter>
+      <DebugLogger />
     </TooltipProvider>
   </QueryClientProvider>
 );
