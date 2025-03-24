@@ -9,17 +9,67 @@
     <meta name="author" content="Lovable" />
     <meta property="og:image" content="/og-image.png" />
     <script>
-      // Polyfill para navegadores antigos
+      // Log básico para debug
+      window.onerror = function(msg, url, line) {
+        document.getElementById('error-info').innerHTML += '<br>Error: ' + msg + '<br>Line: ' + line;
+        return false;
+      };
+      
+      // Polyfills básicos
       if (typeof Promise === 'undefined') {
         document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>');
       }
       if (typeof Object.assign === 'undefined') {
         document.write('<script src="https://cdn.jsdelivr.net/npm/es6-object-assign@1.1.0/dist/object-assign-auto.min.js"><\/script>');
       }
+      
+      // Log do User Agent
+      window.onload = function() {
+        document.getElementById('user-agent').innerText = navigator.userAgent;
+      }
     </script>
+    <style>
+      #error-container {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #ffebee;
+        color: #c62828;
+        padding: 20px;
+        font-family: monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+        z-index: 9999;
+      }
+      .show-error {
+        display: block !important;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="error-container">
+      <strong>Debug Info:</strong>
+      <div id="user-agent"></div>
+      <div id="error-info"></div>
+    </div>
+    <div id="root">
+      <!-- Fallback content caso o JavaScript falhe -->
+      <noscript>
+        <div style="padding: 20px; background: #ffebee; color: #c62828;">
+          JavaScript is required to run this application.
+        </div>
+      </noscript>
+    </div>
+    <script>
+      // Mostra o container de erro se houver falha no carregamento do app
+      setTimeout(function() {
+        if (!document.querySelector('#root > *:not(noscript)')) {
+          document.getElementById('error-container').className = 'show-error';
+        }
+      }, 5000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
