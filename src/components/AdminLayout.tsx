@@ -17,13 +17,13 @@ const clubNavItems = [{
   name: 'Sócios',
   icon: <Users size={20} />,
   submenu: [{
-    name: 'Lista de Sócios',
-    path: '/members/list',
-    icon: <List size={16} />
-  }, {
     name: 'Novo Sócio',
     path: '/members/new',
     icon: <UserPlus size={16} />
+  }, {
+    name: 'Lista de Sócios',
+    path: '/members/list',
+    icon: <List size={16} />
   }, {
     name: 'Perfil de Sócios',
     path: '/members/profile',
@@ -45,6 +45,10 @@ const clubNavItems = [{
     path: '/games',
     icon: <ListChecks size={16} />
   }, {
+    name: 'Destaque da Partida',
+    path: '/game-highlights',
+    icon: <Star size={16} />
+  }, {
     name: 'Estatísticas',
     path: '/game-statistics',
     icon: <BarChart2 size={16} />
@@ -52,27 +56,26 @@ const clubNavItems = [{
     name: 'Performance',
     path: '/game-performance',
     icon: <Trophy size={16} />
-  }, {
-    name: 'Destaque da Partida',
-    path: '/game-highlights',
-    icon: <Star size={16} />
   }]
 }, {
   name: 'Financeiro',
   icon: <DollarSign size={20} />,
   submenu: [{
-    name: 'Movimentações',
-    path: '/finances'
-  }, {
     name: 'Plano de Contas',
-    path: '/chart-of-accounts'
+    path: '/chart-of-accounts',
+    icon: <Receipt size={16} />
   }, {
     name: 'Contas Bancárias',
-    path: '/bank-accounts'
+    path: '/bank-accounts',
+    icon: <DollarSign size={16} />
+  }, {
+    name: 'Movimentações',
+    path: '/finances',
+    icon: <DollarSign size={16} />
   }, {
     name: 'DRE',
     path: '/financial-statement',
-    icon: <Receipt size={16} />
+    icon: <BarChart2 size={16} />
   }]
 }, {
   name: 'Mensalidades',
