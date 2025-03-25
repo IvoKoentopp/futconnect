@@ -322,13 +322,22 @@ const GameHighlights: React.FC = () => {
                     </div>
                   </div>
                 )}
-
-                {/* Botões de admin para gerenciar votação - Movidos para fora do bloco hasWinner */}
-                {isClubAdmin && (gameHighlight || isVotingComplete) && (
-                  <div className="flex gap-2 mt-4">
+              </CardContent>
+              
+              <CardFooter className="pt-2">
+                <div className="flex gap-2 w-full">
+                  <Button 
+                    variant={hasWinner ? "outline" : "default"}
+                    className={hasWinner ? "flex-1" : "bg-futconnect-600 hover:bg-futconnect-700 w-full"}
+                    onClick={() => openVotingModal(game)}
+                  >
+                    {hasWinner ? "Ver Resultados" : "Votar no Destaque"}
+                  </Button>
+                  
+                  {isClubAdmin && (gameHighlight || isVotingComplete) && (
                     <Button
                       variant="outline"
-                      size="sm"
+                      className="flex-1"
                       onClick={() => handleReopenVoting(game.id)}
                       disabled={reopenVotingMutation.isPending}
                     >
@@ -338,30 +347,8 @@ const GameHighlights: React.FC = () => {
                         "Reabrir Votação"
                       )}
                     </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteVoting(game.id)}
-                      disabled={deleteVotingMutation.isPending}
-                    >
-                      {deleteVotingMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Excluir Votação"
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-              
-              <CardFooter className="pt-2">
-                <Button 
-                  variant={hasWinner ? "outline" : "default"}
-                  className={hasWinner ? "" : "bg-futconnect-600 hover:bg-futconnect-700 w-full"}
-                  onClick={() => openVotingModal(game)}
-                >
-                  {hasWinner ? "Ver Resultados" : "Votar no Destaque"}
-                </Button>
+                  )}
+                </div>
               </CardFooter>
             </Card>
           );
