@@ -118,7 +118,7 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
         // Fetch team members from the active team formation
         const { data: teamMembers, error: teamMembersError } = await supabase
           .from('team_members')
-          .select('member_id, team, members(id, name, nickname)')
+          .select('member_id, team, members(id, name, nickname, status)')
           .eq('team_formation_id', teamFormationId);
         
         if (teamMembersError) throw teamMembersError;
@@ -126,18 +126,19 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
         // Organize players by team
         const players: Record<string, any[]> = {};
         
-        teamMembers.forEach(member => {
-          const team = member.team;
-          if (!players[team]) {
-            players[team] = [];
-          }
-          
-          players[team].push({
-            id: member.member_id,
-            name: member.members?.name || 'Unknown',
-            nickname: member.members?.nickname || member.members?.name || 'Unknown'
+        teamMembers
+          .forEach(member => {
+            const team = member.team;
+            if (!players[team]) {
+              players[team] = [];
+            }
+            
+            players[team].push({
+              id: member.member_id,
+              name: member.members?.name || 'Unknown',
+              nickname: member.members?.nickname || member.members?.name || 'Unknown'
+            });
           });
-        });
         
         setTeamPlayers(players);
       } else {
@@ -145,18 +146,19 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
         // and assign them randomly to teams for display purposes
         const { data: participants, error } = await supabase
           .from('game_participants')
-          .select('member_id, status, members(id, name, nickname)')
+          .select('member_id, status, members(id, name, nickname, status)')
           .eq('game_id', gameId)
           .eq('status', 'confirmed');
         
         if (error) throw error;
         
         // Convert participants to the expected format
-        const allMembers = participants.map(p => ({
-          id: p.member_id,
-          name: p.members?.name || 'Unknown',
-          nickname: p.members?.nickname || p.members?.name || 'Unknown'
-        }));
+        const allMembers = participants
+          .map(p => ({
+            id: p.member_id,
+            name: p.members?.name || 'Unknown',
+            nickname: p.members?.nickname || p.members?.name || 'Unknown'
+          }));
         
         // Split participants evenly between default teams
         // This is just for display when no teams are formed yet
