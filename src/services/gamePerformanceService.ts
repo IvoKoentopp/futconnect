@@ -1,8 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TeamStats {
-  id: number;
+  id: string;
   name: string;
+  color: string; 
   wins: number;
   draws: number;
   losses: number;
@@ -25,7 +26,7 @@ export interface PlayerStats {
   losses: number;
   points: number;
   goalAverage: number;
-  position: number;
+  winRate: string;
 }
 
 export interface ParticipationRankingStats {
@@ -46,489 +47,305 @@ interface DateFilter {
 }
 
 export const gamePerformanceService = {
-  async fetchTeamStats(clubId: string, year: string, month: string = "all"): Promise<TeamStats[]> {
-    console.log('Fetching team statistics for club:', clubId, 'year:', year, 'month:', month);
-    
+  async fetchTeamStats(clubId: string, year: number, month: number | 'all'): Promise<TeamStats[]> {
     try {
-      // Define date range based on year and month selection
-      let dateFilter: DateFilter = {};
-      
-      if (year !== "all") {
-        if (month !== "all") {
-          // Get the date range for the selected month in the selected year
-          const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
-          const startDate = `${year}-${month}-01`;
-          const endDate = `${year}-${month}-${daysInMonth}`;
-          
-          dateFilter = {
-            gte: startDate,
-            lte: endDate
-          };
-        } else {
-          // Get the date range for the selected year
-          const startDate = `${year}-01-01`;
-          const endDate = `${year}-12-31`;
-          
-          dateFilter = {
-            gte: startDate,
-            lte: endDate
-          };
-        }
-      }
-      
-      // First, fetch the game events to find games with events
-      const { data: gameEventsData, error: gameEventsError } = await supabase
-        .from('game_events')
-        .select('game_id');
-        
-      if (gameEventsError) {
-        console.error('Error fetching game events:', gameEventsError);
-        throw gameEventsError;
-      }
-      
-      if (!gameEventsData || gameEventsData.length === 0) {
-        console.log('No game events found');
-        return [];
-      }
-      
-      // Extract game IDs from events
-      const gameIdsWithEvents = [...new Set(gameEventsData.map(event => event.game_id))];
-      
-      // Fetch games that have at least one event
-      let query = supabase
-        .from('games')
-        .select('id, title')
-        .eq('club_id', clubId)
-        .eq('status', 'completed')
-        .in('id', gameIdsWithEvents);
-        
-      // Add date filter only if a specific year is selected
-      if (year !== "all") {
-        query = query.gte('date', dateFilter.gte).lte('date', dateFilter.lte);
-      }
-      
-      const { data: gamesWithEvents, error: gamesError } = await query;
-        
-      if (gamesError) {
-        console.error('Error fetching games with events:', gamesError);
-        throw gamesError;
-      }
-      
-      if (!gamesWithEvents || gamesWithEvents.length === 0) {
-        console.log('No games with events found for the selected period');
-        return [];
-      }
-      
-      console.log(`Found ${gamesWithEvents.length} games with events`);
-      
-      // Get the game IDs
-      const gameIds = gamesWithEvents.map(game => game.id);
-      
-      // Fetch all team formations for these games
-      const { data: teamFormations, error: formationsError } = await supabase
-        .from('team_formations')
-        .select('id, game_id')
-        .in('game_id', gameIds)
-        .eq('is_active', true);
-        
-      if (formationsError) {
-        console.error('Error fetching team formations:', formationsError);
-        throw formationsError;
-      }
-      
-      if (!teamFormations || teamFormations.length === 0) {
-        console.log('No team formations found for games with events');
-        return [];
-      }
-      
-      const formationIds = teamFormations.map(formation => formation.id);
-      
-      // Get all team members for these formations
-      const { data: teamMembers, error: membersError } = await supabase
-        .from('team_members')
-        .select('*, members(name)')
-        .in('team_formation_id', formationIds);
-        
-      if (membersError) {
-        console.error('Error fetching team members:', membersError);
-        throw membersError;
-      }
-      
-      // Get all game events for these games
-      const { data: gameEvents, error: eventsError } = await supabase
-        .from('game_events')
+      // 1. Primeiro, buscar as configurações de times do clube
+      const { data: teamConfigurations, error: configError } = await supabase
+        .from('team_configurations')
         .select('*')
-        .in('game_id', gameIds);
-        
-      if (eventsError) {
-        console.error('Error fetching game events:', eventsError);
-        throw eventsError;
+        .eq('club_id', clubId)
+        .eq('is_active', true);
+
+      if (configError) throw configError;
+
+      // 2. Buscar todos os eventos do período
+      let query = supabase
+        .from('game_events')
+        .select('*, games!inner(club_id)')
+        .eq('games.club_id', clubId);
+
+      // Aplicar filtro de data apenas se não for 'all'
+      if (month !== 'all') {
+        const startDate = new Date(year, month - 1, 1).toISOString();
+        const endDate = new Date(year, month, 0).toISOString();
+        query = query
+          .gte('created_at', startDate)
+          .lt('created_at', endDate);
       }
-      
-      // Calculate team statistics
-      // Group members by team (white/green)
-      const teams: Record<string, any> = {
-        'white': { name: 'Time Branco', wins: 0, draws: 0, losses: 0, goalsScored: 0, goalsConceded: 0 },
-        'green': { name: 'Time Verde', wins: 0, draws: 0, losses: 0, goalsScored: 0, goalsConceded: 0 }
-      };
-      
-      // Process each game to calculate team statistics
-      for (const game of gamesWithEvents) {
-        // Get events for this game
-        const eventsForGame = gameEvents.filter(event => event.game_id === game.id);
-        
-        if (eventsForGame.length === 0) continue;
-        
-        // Calculate goals for each team
-        let whiteGoals = 0;
-        let greenGoals = 0;
-        
-        for (const event of eventsForGame) {
-          if (event.event_type === 'goal') {
-            if (event.team === 'white') whiteGoals++;
-            else if (event.team === 'green') greenGoals++;
-          } else if (event.event_type === 'own-goal') {
-            // Own goal counts for the opposite team
-            if (event.team === 'white') greenGoals++;
-            else if (event.team === 'green') whiteGoals++;
-          }
-        }
-        
-        // Update team statistics
-        teams['white'].goalsScored += whiteGoals;
-        teams['white'].goalsConceded += greenGoals;
-        teams['green'].goalsScored += greenGoals;
-        teams['green'].goalsConceded += whiteGoals;
-        
-        // Update wins/draws/losses
-        if (whiteGoals > greenGoals) {
-          teams['white'].wins++;
-          teams['green'].losses++;
-        } else if (greenGoals > whiteGoals) {
-          teams['green'].wins++;
-          teams['white'].losses++;
-        } else {
-          teams['white'].draws++;
-          teams['green'].draws++;
-        }
-      }
-      
-      // Convert to array and calculate derived statistics
-      const teamStats: TeamStats[] = Object.keys(teams).map((teamKey, index) => {
-        const team = teams[teamKey];
-        const totalGames = team.wins + team.draws + team.losses;
-        const points = (team.wins * 3) + team.draws;
-        const winRate = totalGames > 0 ? ((team.wins / totalGames) * 100).toFixed(1) : "0.0";
-        
-        return {
-          id: index + 1,
-          name: team.name,
-          wins: team.wins,
-          draws: team.draws,
-          losses: team.losses,
-          goalsScored: team.goalsScored,
-          goalsConceded: team.goalsConceded,
-          totalGames,
-          points,
-          winRate: `${winRate}%`
+
+      const { data: gameEvents, error: eventsError } = await query;
+
+      if (eventsError) throw eventsError;
+
+      // Limpar os dados para usar apenas os campos necessários
+      const cleanedEvents = gameEvents.map(event => ({
+        game_id: event.game_id,
+        team: event.team,
+        event_type: event.event_type
+      }));
+
+      // 3. Inicializar estatísticas
+      const teams: Record<string, TeamStats> = {};
+      teamConfigurations.forEach(config => {
+        teams[config.team_name] = {
+          id: config.id,
+          name: config.team_name,
+          color: config.team_color,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          goalsScored: 0,
+          goalsConceded: 0,
+          totalGames: 0,
+          points: 0,
+          winRate: '0%'
         };
       });
-      
-      // Sort by points, then goals scored
-      return teamStats.sort((a, b) => {
-        if (b.points !== a.points) {
-          return b.points - a.points;
+
+      // 4. Agrupar eventos por jogo
+      const gameEventsByGame = cleanedEvents.reduce((acc, event) => {
+        if (!acc[event.game_id]) {
+          acc[event.game_id] = [];
         }
-        return b.goalsScored - a.goalsScored;
+        acc[event.game_id].push(event);
+        return acc;
+      }, {} as Record<string, typeof cleanedEvents>);
+
+      // 5. Processar cada jogo
+      Object.values(gameEventsByGame).forEach(eventsForGame => {
+        // Pegar times únicos que participaram deste jogo
+        const teamsInGame = [...new Set(eventsForGame.map(event => event.team))];
+        
+        // Calcular gols para cada time no jogo
+        const gameGoals: Record<string, number> = {};
+        teamsInGame.forEach(team => {
+          gameGoals[team] = 0;
+        });
+
+        // Contar gols
+        eventsForGame.forEach(event => {
+          if (event.event_type === 'goal') {
+            gameGoals[event.team] = (gameGoals[event.team] || 0) + 1;
+          } else if (event.event_type === 'own-goal') {
+            const otherTeams = teamsInGame.filter(t => t !== event.team);
+            const goalValue = 1 / otherTeams.length;
+            otherTeams.forEach(team => {
+              gameGoals[team] = (gameGoals[team] || 0) + goalValue;
+            });
+          }
+        });
+
+        // Atualizar estatísticas para cada time
+        teamsInGame.forEach(teamName => {
+          if (!teams[teamName]) return;
+
+          teams[teamName].totalGames++;
+          const teamGoals = Math.round(gameGoals[teamName] || 0);
+          teams[teamName].goalsScored += teamGoals;
+
+          // Gols sofridos
+          const goalsConceded = Object.entries(gameGoals)
+            .filter(([team]) => team !== teamName)
+            .reduce((sum, [, goals]) => sum + goals, 0);
+          teams[teamName].goalsConceded += Math.round(goalsConceded);
+
+          // Determinar resultado
+          const maxOtherTeamGoals = Math.max(
+            ...Object.entries(gameGoals)
+              .filter(([team]) => team !== teamName)
+              .map(([, goals]) => goals)
+          );
+
+          if (teamGoals > maxOtherTeamGoals) {
+            teams[teamName].wins++;
+            teams[teamName].points += 3;
+          } else if (teamGoals === maxOtherTeamGoals) {
+            teams[teamName].draws++;
+            teams[teamName].points += 1;
+          } else {
+            teams[teamName].losses++;
+          }
+        });
       });
-      
+
+      // 6. Calcular win rate e retornar
+      return Object.values(teams)
+        .map(team => ({
+          ...team,
+          winRate: team.totalGames > 0 
+            ? `${Math.round((team.wins / team.totalGames) * 100)}%`
+            : '0%'
+        }))
+        .sort((a, b) => b.points - a.points);
+
     } catch (error) {
       console.error('Error in fetchTeamStats:', error);
       throw error;
     }
   },
   
-  async fetchPlayerStats(clubId: string, year: string, month: string = "all"): Promise<PlayerStats[]> {
-    console.log('Fetching player statistics for club:', clubId, 'year:', year, 'month:', month);
-    
+  async fetchPlayerStats(clubId: string, year: string | number, month: string | number | 'all'): Promise<PlayerStats[]> {
     try {
-      // Define date range based on year and month selection
-      let dateFilter: DateFilter = {};
-      
-      if (year !== "all") {
-        if (month !== "all") {
-          // Get the date range for the selected month in the selected year
-          const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
-          const startDate = `${year}-${month}-01`;
-          const endDate = `${year}-${month}-${daysInMonth}`;
-          
-          dateFilter = {
-            gte: startDate,
-            lte: endDate
-          };
-        } else {
-          // Get the date range for the selected year
-          const startDate = `${year}-01-01`;
-          const endDate = `${year}-12-31`;
-          
-          dateFilter = {
-            gte: startDate,
-            lte: endDate
-          };
-        }
-      }
-      
-      // First, fetch the game events to find games with events
-      const { data: gameEventsData, error: gameEventsError } = await supabase
-        .from('game_events')
-        .select('game_id');
-        
-      if (gameEventsError) {
-        console.error('Error fetching game events:', gameEventsError);
-        throw gameEventsError;
-      }
-      
-      if (!gameEventsData || gameEventsData.length === 0) {
-        console.log('No game events found');
-        return [];
-      }
-      
-      // Extract game IDs from events
-      const gameIdsWithEvents = [...new Set(gameEventsData.map(event => event.game_id))];
-      
-      // Fetch games that have events
+      // 1. Buscar todos os eventos do período (incluindo jogadores inativos para calcular placares)
       let query = supabase
-        .from('games')
-        .select('id, title')
-        .eq('club_id', clubId)
-        .eq('status', 'completed')
-        .in('id', gameIdsWithEvents);
-        
-      // Add date filter only if a specific year is selected
-      if (year !== "all") {
-        query = query.gte('date', dateFilter.gte).lte('date', dateFilter.lte);
-      }
-      
-      const { data: gamesWithEvents, error: gamesError } = await query;
-        
-      if (gamesError) {
-        console.error('Error fetching games with events:', gamesError);
-        throw gamesError;
-      }
-      
-      if (!gamesWithEvents || gamesWithEvents.length === 0) {
-        console.log('No games with events found for the selected period');
-        return [];
-      }
-      
-      // Get game IDs
-      const gameIds = gamesWithEvents.map(game => game.id);
-      
-      // Fetch active team formations for these games
-      const { data: teamFormations, error: formationsError } = await supabase
-        .from('team_formations')
-        .select('id, game_id')
-        .in('game_id', gameIds)
-        .eq('is_active', true);
-      
-      if (formationsError) {
-        console.error('Error fetching team formations:', formationsError);
-        throw formationsError;
-      }
-      
-      // Map formations to games
-      const formationsByGame: Record<string, any> = {};
-      teamFormations.forEach(formation => {
-        formationsByGame[formation.game_id] = formation.id;
-      });
-      
-      // Fetch team members for these formations
-      const { data: teamMembers, error: membersError } = await supabase
-        .from('team_members')
-        .select('*, members(id, name, nickname)')
-        .in('team_formation_id', teamFormations.map(f => f.id));
-      
-      if (membersError) {
-        console.error('Error fetching team members:', membersError);
-        throw membersError;
-      }
-      
-      // Fetch game events
-      const { data: gameEvents, error: eventsError } = await supabase
         .from('game_events')
-        .select('*')
-        .in('game_id', gameIds);
-      
-      if (eventsError) {
-        console.error('Error fetching game events:', eventsError);
-        throw eventsError;
+        .select(`
+          *,
+          games!inner(club_id, id),
+          member:members!inner(id, nickname, status)
+        `)
+        .eq('games.club_id', clubId);
+
+      // Aplicar filtro de data apenas se não for 'all'
+      if (year !== 'all' && month !== 'all') {
+        const startDate = new Date(
+          typeof year === 'string' ? parseInt(year) : year,
+          typeof month === 'string' ? parseInt(month) - 1 : month - 1,
+          1
+        ).toISOString();
+        const endDate = new Date(
+          typeof year === 'string' ? parseInt(year) : year,
+          typeof month === 'string' ? parseInt(month) : month,
+          0
+        ).toISOString();
+
+        query = query
+          .gte('created_at', startDate)
+          .lt('created_at', endDate);
       }
-      
-      // Get active members for this club
-      const { data: activeMembers, error: activeMembersError } = await supabase
-        .from('members')
-        .select('id')
-        .eq('club_id', clubId)
-        .eq('status', 'Ativo');
-        
-      if (activeMembersError) {
-        console.error('Error fetching active members:', activeMembersError);
-        throw activeMembersError;
-      }
-      
-      // Create a set of active member IDs for quick lookup
-      const activeMemberIds = new Set(activeMembers?.map(member => member.id) || []);
-      
-      // Create player statistics structure
-      const playerStatsMap: Record<string, any> = {};
-      
-      // First, initialize player data from team members
-      teamMembers.forEach(member => {
-        const memberId = member.member_id;
-        const memberName = member.members.nickname || member.members.name;
-        
-        if (!playerStatsMap[memberId]) {
-          playerStatsMap[memberId] = {
-            id: memberId,
-            name: memberName,
-            games: 0,
-            goals: 0,
-            ownGoals: 0,
-            saves: 0,
-            wins: 0,
-            draws: 0,
-            losses: 0,
-            points: 0,
-            goalAverage: 0,
-            team: member.team // Track which team they played for
-          };
+
+      const { data: gameEvents, error: eventsError } = await query;
+
+      if (eventsError) throw eventsError;
+
+      // 2. Agrupar eventos por jogo
+      const gameEventsByGame = gameEvents.reduce((acc, event) => {
+        if (!acc[event.game_id]) {
+          acc[event.game_id] = [];
         }
-        
-        // Count that they played in this game
-        playerStatsMap[memberId].games++;
-      });
-      
-      // Process game events for goals, own goals, and saves
-      gameEvents.forEach(event => {
-        const memberId = event.member_id;
-        
-        // Skip if player not found (shouldn't happen)
-        if (!playerStatsMap[memberId]) return;
-        
-        // Count different event types
-        if (event.event_type === 'goal') {
-          playerStatsMap[memberId].goals++;
-        } else if (event.event_type === 'own-goal') {
-          playerStatsMap[memberId].ownGoals++;
-        } else if (event.event_type === 'save') {
-          playerStatsMap[memberId].saves++;
-        }
-      });
-      
-      // Process game results for each player's wins, draws, losses
-      gamesWithEvents.forEach(game => {
-        // Calculate game result based on events
-        const eventsForGame = gameEvents.filter(e => e.game_id === game.id);
-        let whiteGoals = 0;
-        let greenGoals = 0;
-        
-        eventsForGame.forEach(event => {
-          if (event.event_type === 'goal') {
-            if (event.team === 'white') whiteGoals++;
-            else if (event.team === 'green') greenGoals++;
-          } else if (event.event_type === 'own-goal') {
-            if (event.team === 'white') greenGoals++;
-            else if (event.team === 'green') whiteGoals++;
-          }
-        });
-        
-        // Get formation for this game
-        const formationId = formationsByGame[game.id];
-        if (!formationId) return;
-        
-        // Find players in this game
-        const playersInGame = teamMembers.filter(m => m.team_formation_id === formationId);
-        
-        playersInGame.forEach(player => {
-          const playerId = player.member_id;
-          if (!playerStatsMap[playerId]) return;
+        acc[event.game_id].push(event);
+        return acc;
+      }, {} as Record<string, typeof gameEvents>);
+
+      // 3. Inicializar estatísticas dos jogadores ativos
+      const playerStats: Record<string, PlayerStats> = {};
+      const activePlayerIds = new Set(
+        gameEvents
+          .filter(event => event.member.status === 'Ativo')
+          .map(event => event.member_id)
+      );
+
+      // 4. Processar cada jogo
+      Object.values(gameEventsByGame).forEach(eventsForGame => {
+        // Identificar times e jogadores no jogo
+        const teamsInGame = [...new Set(eventsForGame.map(event => event.team))];
+        const activePlayersInGame = [...new Set(eventsForGame
+          .filter(event => activePlayerIds.has(event.member_id))
+          .map(event => event.member_id)
+        )];
+
+        // Calcular gols por time (usando TODOS os jogadores)
+        const gameGoals: Record<string, number> = {};
+        teamsInGame.forEach(team => {
+          gameGoals[team] = eventsForGame
+            .filter(event => event.team === team && event.event_type === 'goal')
+            .length;
+
+          // Adicionar gols contra do time adversário
+          const ownGoals = eventsForGame
+            .filter(event => event.team !== team && event.event_type === 'own-goal')
+            .length;
           
-          // Update player's record based on game result
-          if (player.team === 'white') {
-            if (whiteGoals > greenGoals) {
-              playerStatsMap[playerId].wins++;
-            } else if (whiteGoals < greenGoals) {
-              playerStatsMap[playerId].losses++;
-            } else {
-              playerStatsMap[playerId].draws++;
-            }
-          } else if (player.team === 'green') {
-            if (greenGoals > whiteGoals) {
-              playerStatsMap[playerId].wins++;
-            } else if (greenGoals < whiteGoals) {
-              playerStatsMap[playerId].losses++;
-            } else {
-              playerStatsMap[playerId].draws++;
-            }
+          gameGoals[team] += ownGoals;
+        });
+
+        // Processar eventos apenas para jogadores ativos
+        eventsForGame.forEach(event => {
+          if (!activePlayerIds.has(event.member_id)) return;
+
+          // Inicializar estatísticas do jogador se necessário
+          if (!playerStats[event.member_id]) {
+            playerStats[event.member_id] = {
+              id: event.member_id,
+              name: event.member.nickname,
+              games: 0,
+              goals: 0,
+              ownGoals: 0,
+              saves: 0,
+              wins: 0,
+              draws: 0,
+              losses: 0,
+              points: 0,
+              goalAverage: 0,
+              winRate: '0%'
+            };
+          }
+
+          // Contar eventos
+          if (event.event_type === 'goal') {
+            playerStats[event.member_id].goals++;
+          } else if (event.event_type === 'own-goal') {
+            playerStats[event.member_id].ownGoals++;
+          } else if (event.event_type === 'save') {
+            playerStats[event.member_id].saves++;
+          }
+        });
+
+        // Atualizar estatísticas dos jogadores ativos
+        activePlayersInGame.forEach(playerId => {
+          if (!playerStats[playerId]) return;
+
+          const playerTeam = eventsForGame.find(e => e.member_id === playerId)?.team;
+          if (!playerTeam) return;
+
+          playerStats[playerId].games++;
+
+          // Determinar resultado usando o placar calculado com TODOS os jogadores
+          const teamGoals = gameGoals[playerTeam] || 0;
+          const maxOtherTeamGoals = Math.max(
+            ...Object.entries(gameGoals)
+              .filter(([team]) => team !== playerTeam)
+              .map(([, goals]) => goals)
+          );
+
+          if (teamGoals > maxOtherTeamGoals) {
+            playerStats[playerId].wins++;
+          } else if (teamGoals === maxOtherTeamGoals) {
+            playerStats[playerId].draws++;
+          } else {
+            playerStats[playerId].losses++;
           }
         });
       });
-      
-      // Calculate points and other derived stats
-      Object.values(playerStatsMap).forEach((player: any) => {
-        // Points calculation:
-        // Game = 1 point
-        // Goal = 1 point
-        // Own goal = -1 point
-        // Win = 3 points
-        // Draw = 1 point
-        // Loss = 0 points
-        // Save = 0.20 points
-        
-        player.points = 
-          player.games * 1 + 
-          player.goals * 1 + 
-          player.ownGoals * -1 + 
-          player.wins * 3 + 
-          player.draws * 1 +
-          player.saves * 0.20;
-        
-        // Calculate goal average
-        player.goalAverage = player.games > 0 ? player.goals / player.games : 0;
-      });
-      
-      // Filter to include only active players
-      const activePlayerStats = Object.values(playerStatsMap)
-        .filter((player: any) => activeMemberIds.has(player.id)) as PlayerStats[];
-      
-      // Sort active players by points, then games played, then goal average
-      activePlayerStats.sort((a, b) => {
-        // First tiebreaker: points
-        if (b.points !== a.points) {
-          return b.points - a.points;
-        }
-        
-        // Second tiebreaker: games played
-        if (b.games !== a.games) {
-          return b.games - a.games;
-        }
-        
-        // Third tiebreaker: goal average
-        return b.goalAverage - a.goalAverage;
-      });
-      
-      // Add position
-      return activePlayerStats.map((player, index) => ({
-        ...player,
-        position: index + 1
-      }));
-      
+
+      // 5. Calcular pontuação e estatísticas finais
+      return Object.values(playerStats)
+        .map(player => {
+          const points = 
+            player.games * 1 +
+            player.goals * 1 +
+            player.ownGoals * -1 +
+            player.wins * 3 +
+            player.draws * 1 +
+            player.saves * 0.20;
+
+          return {
+            ...player,
+            points,
+            goalAverage: player.games > 0 ? player.goals / player.games : 0,
+            winRate: player.games > 0
+              ? `${Math.round((player.wins / player.games) * 100)}%`
+              : '0%'
+          };
+        })
+        .sort((a, b) => b.points - a.points);
+
     } catch (error) {
       console.error('Error in fetchPlayerStats:', error);
       throw error;
     }
   },
-
+  
   async fetchParticipationRanking(clubId: string, year: string = "all", month: string = "all"): Promise<ParticipationRankingStats[]> {
     console.log('Fetching participation ranking for club:', clubId, 'year:', year, 'month:', month);
     
@@ -716,6 +533,7 @@ export const gamePerformanceService = {
         .sort((a, b) => b.points - a.points)
         .map((participant, index) => ({
           ...participant,
+          points: participant.points,
           position: index + 1
         }));
       

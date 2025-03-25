@@ -188,7 +188,11 @@ const GamePerformance = () => {
       
       try {
         // Fetch team statistics
-        const teamData = await gamePerformanceService.fetchTeamStats(clubId, selectedYear, selectedMonth);
+        const teamData = await gamePerformanceService.fetchTeamStats(
+          clubId,
+          selectedYear === 'all' ? new Date().getFullYear() : parseInt(selectedYear),
+          selectedMonth === 'all' ? 'all' : parseInt(selectedMonth)
+        );
         setTeamStats(teamData);
         
         // Fetch player statistics
@@ -517,7 +521,15 @@ const GamePerformance = () => {
                                   index + 1
                                 )}
                               </TableCell>
-                              <TableCell className="font-medium">{team.name}</TableCell>
+                              <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                  <div 
+                                    className="w-4 h-4 rounded border border-gray-200" 
+                                    style={{ backgroundColor: team.color }}
+                                  />
+                                  {team.name}
+                                </div>
+                              </TableCell>
                               <TableCell className="text-center font-semibold">{team.points}</TableCell>
                               <TableCell className="text-center">{team.totalGames}</TableCell>
                               <TableCell className="text-center">{team.wins}</TableCell>
@@ -574,13 +586,19 @@ const GamePerformance = () => {
                                 </div>
                               </TableHead>
                               <TableHead className="text-center font-semibold">Jogos</TableHead>
-                              <TableHead className="text-center font-semibold">Vitórias</TableHead>
+                              <TableHead className="text-center font-semibold">
+                                <div className="flex items-center justify-center">
+                                  <span>Vitórias</span>
+                                  <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
+                                </div>
+                              </TableHead>
                               <TableHead className="text-center font-semibold">Empates</TableHead>
                               <TableHead className="text-center font-semibold">Derrotas</TableHead>
                               <TableHead className="text-center font-semibold">Gols</TableHead>
                               <TableHead className="text-center font-semibold">Gols Contra</TableHead>
                               <TableHead className="text-center font-semibold">Média de Gols</TableHead>
                               <TableHead className="text-center font-semibold">Defesas</TableHead>
+                              <TableHead className="text-center font-semibold">Aproveitamento</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -603,15 +621,16 @@ const GamePerformance = () => {
                                   )}
                                 </TableCell>
                                 <TableCell className="font-medium">{player.name}</TableCell>
-                                <TableCell className="text-center font-semibold">{player.points}</TableCell>
+                                <TableCell className="text-center font-semibold">{player.points.toFixed(1)}</TableCell>
                                 <TableCell className="text-center">{player.games}</TableCell>
                                 <TableCell className="text-center">{player.wins}</TableCell>
                                 <TableCell className="text-center">{player.draws}</TableCell>
                                 <TableCell className="text-center">{player.losses}</TableCell>
-                                <TableCell className="text-center font-medium">{player.goals}</TableCell>
+                                <TableCell className="text-center">{player.goals}</TableCell>
                                 <TableCell className="text-center">{player.ownGoals}</TableCell>
                                 <TableCell className="text-center">{player.goalAverage.toFixed(2)}</TableCell>
                                 <TableCell className="text-center">{player.saves}</TableCell>
+                                <TableCell className="text-center">{player.winRate}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
