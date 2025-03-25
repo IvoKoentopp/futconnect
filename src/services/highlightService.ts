@@ -296,10 +296,11 @@ export const highlightService = {
       // 1. Primeiro criar/atualizar o registro de controle
       const { error: controlError } = await supabase
         .from('game_voting_control')
-        .upsert({
-          game_id: gameId,
-          is_finalized: true
-        });
+        .update({
+          is_finalized: true,
+          finalized_at: new Date().toISOString()
+        })
+        .eq('game_id', gameId);
 
       if (controlError) {
         console.error('Error updating voting control:', controlError);
