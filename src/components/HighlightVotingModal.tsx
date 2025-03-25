@@ -485,7 +485,7 @@ export const HighlightVotingModal: React.FC<HighlightVotingModalProps> = ({
                   {!currentVoterId ? (
                     <div className="border rounded-md p-4 bg-gray-50">
                       <div className="space-y-4">
-                        <h3 className="font-medium flex items-center gap-2">
+                        <h3 className="font-medium mb-4 flex items-center gap-2">
                           <UserRound className="h-4 w-4" />
                           Quem está votando:
                         </h3>
@@ -653,7 +653,6 @@ export const HighlightVotingModal: React.FC<HighlightVotingModalProps> = ({
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             {eligiblePlayersForVoting.map((participant) => {
                               const isSelected = selectedPlayerId === participant.member_id;
-                              const voteCount = highlights.find(h => h.member_id === participant.member_id)?.votes_count || 0;
                               
                               return (
                                 <div key={participant.member_id}>
@@ -702,13 +701,6 @@ export const HighlightVotingModal: React.FC<HighlightVotingModalProps> = ({
                                     <div className="font-medium">
                                       {participant.memberDetails?.nickname || participant.memberDetails?.name}
                                     </div>
-                                    
-                                    {/* Votos */}
-                                    {voteCount > 0 && (
-                                      <Badge variant="secondary" className="bg-futconnect-100 text-futconnect-700">
-                                        {voteCount} {voteCount === 1 ? 'voto' : 'votos'}
-                                      </Badge>
-                                    )}
                                   </Label>
                                 </div>
                               );

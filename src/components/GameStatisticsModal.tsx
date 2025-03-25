@@ -123,11 +123,10 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
         
         if (teamMembersError) throw teamMembersError;
         
-        // Organize players by team, excluding system members
+        // Organize players by team
         const players: Record<string, any[]> = {};
         
         teamMembers
-          .filter(member => member.members?.status !== 'Sistema')
           .forEach(member => {
             const team = member.team;
             if (!players[team]) {
@@ -153,9 +152,8 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
         
         if (error) throw error;
         
-        // Convert participants to the expected format, excluding system members
+        // Convert participants to the expected format
         const allMembers = participants
-          .filter(p => p.members?.status !== 'Sistema')
           .map(p => ({
             id: p.member_id,
             name: p.members?.name || 'Unknown',
