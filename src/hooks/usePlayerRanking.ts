@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { gamePerformanceService } from '@/services/gamePerformanceService';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,7 +29,7 @@ export const usePlayerRanking = (clubId: string | undefined) => {
         const currentYear = new Date().getFullYear().toString();
         
         // Fetch player stats from the game performance service
-        const playerStats = await gamePerformanceService.fetchPlayerStats(clubId, currentYear);
+        const playerStats = await gamePerformanceService.fetchPlayerStats(clubId, currentYear, 'all');
         
         // Get member IDs to fetch their photos
         const memberIds = playerStats.map(player => player.id);

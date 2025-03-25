@@ -27,6 +27,7 @@ export interface PlayerStats {
   points: number;
   goalAverage: number;
   winRate: string;
+  position?: number;
 }
 
 export interface ParticipationRankingStats {
@@ -338,7 +339,11 @@ export const gamePerformanceService = {
               : '0%'
           };
         })
-        .sort((a, b) => b.points - a.points);
+        .sort((a, b) => b.points - a.points)
+        .map((player, index) => ({
+          ...player,
+          position: index + 1
+        }));
 
     } catch (error) {
       console.error('Error in fetchPlayerStats:', error);
