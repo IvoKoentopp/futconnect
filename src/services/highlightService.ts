@@ -294,11 +294,13 @@ export const highlightService = {
       }
 
       // 1. Primeiro criar/atualizar o registro de controle
-      const { error: controlError } = await supabase
+      console.log('Atualizando game_voting_control para game_id:', gameId);
+      const { data: updateData, error: controlError } = await supabase
         .from('game_voting_control')
         .update({
           is_finalized: true,
-          finalized_at: new Date().toISOString()
+          finalized_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         })
         .eq('game_id', gameId);
 
@@ -306,6 +308,8 @@ export const highlightService = {
         console.error('Error updating voting control:', controlError);
         throw controlError;
       }
+
+      console.log('Resultado da atualização:', updateData);
 
       // 2. Depois marcar o vencedor
       const { error: updateError } = await supabase
@@ -319,13 +323,22 @@ export const highlightService = {
       }
 
       // 3. Verificar se as atualizações foram bem sucedidas
-      const { data: verifyControl } = await supabase
+      console.log('Verificando atualização do game_voting_control');
+      const { data: verifyControl, error: verifyError } = await supabase
         .from('game_voting_control')
-        .select('is_finalized')
+        .select('*')
         .eq('game_id', gameId)
-        .single();
+        .eq('is_finalized', true);
 
-      if (!verifyControl?.is_finalized) {
+      console.log('Resultado da verificação:', verifyControl);
+
+      if (verifyError) {
+        console.error('Erro ao verificar controle:', verifyError);
+        throw verifyError;
+      }
+
+      if (!verifyControl || verifyControl.length === 0) {
+        console.error('Estado atual do controle:', verifyControl);
         throw new Error('Falha ao persistir o status de finalização da votação.');
       }
 
