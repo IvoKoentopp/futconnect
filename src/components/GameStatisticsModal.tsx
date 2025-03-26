@@ -42,8 +42,9 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
   
   useEffect(() => {
     if (isOpen && gameId) {
-      fetchGameData();
-      fetchTeamsAndEvents();
+      fetchGameData().then(() => {
+        fetchTeamsAndEvents();
+      });
     }
   }, [isOpen, gameId]);
   
@@ -112,6 +113,8 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
       
       if (teamFormationsError) throw teamFormationsError;
       
+      let activeTeams: string[] = [];
+      
       if (teamFormations && teamFormations.length > 0) {
         const teamFormationId = teamFormations[0].id;
         
@@ -125,25 +128,26 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
         
         // Organize players by team
         const players: Record<string, any[]> = {};
+        const teamsSet = new Set<string>();
         
-        teamMembers
-          .forEach(member => {
-            const team = member.team;
-            if (!players[team]) {
-              players[team] = [];
-            }
-            
-            players[team].push({
-              id: member.member_id,
-              name: member.members?.name || 'Unknown',
-              nickname: member.members?.nickname || member.members?.name || 'Unknown'
-            });
+        teamMembers.forEach(member => {
+          const team = member.team;
+          if (!players[team]) {
+            players[team] = [];
+            teamsSet.add(team);
+          }
+          
+          players[team].push({
+            id: member.member_id,
+            name: member.members?.name || 'Unknown',
+            nickname: member.members?.nickname || member.members?.name || 'Unknown'
           });
+        });
         
         setTeamPlayers(players);
+        activeTeams = Array.from(teamsSet);
       } else {
         // If no active team formation, use confirmed game participants
-        // and assign them randomly to teams for display purposes
         const { data: participants, error } = await supabase
           .from('game_participants')
           .select('member_id, status, members(id, name, nickname, status)')
@@ -152,43 +156,48 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
         
         if (error) throw error;
         
-        // Convert participants to the expected format
-        const allMembers = participants
-          .map(p => ({
-            id: p.member_id,
-            name: p.members?.name || 'Unknown',
-            nickname: p.members?.nickname || p.members?.name || 'Unknown'
-          }));
+        const allMembers = participants.map(p => ({
+          id: p.member_id,
+          name: p.members?.name || 'Unknown',
+          nickname: p.members?.nickname || p.members?.name || 'Unknown'
+        }));
         
-        // Split participants evenly between default teams
-        // This is just for display when no teams are formed yet
+        // Get team configurations for the club
+        const { data: teamConfigs } = await supabase
+          .from('team_configurations')
+          .select('*')
+          .eq('club_id', gameData?.club_id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: true })
+          .limit(2);
+        
+        // Use the first two active team configurations or fallback to default
+        const team1 = teamConfigs?.[0]?.id || 'yellow';
+        const team2 = teamConfigs?.[1]?.id || 'black';
+        activeTeams = [team1, team2];
+        
         const halfLength = Math.ceil(allMembers.length / 2);
-        setTeamPlayers({
-          'white': allMembers.slice(0, halfLength),
-          'green': allMembers.slice(halfLength)
-        });
+        const teamPlayersData = {
+          [team1]: allMembers.slice(0, halfLength),
+          [team2]: allMembers.slice(halfLength)
+        };
+        
+        setTeamPlayers(teamPlayersData);
       }
+
+      // Initialize scores with 0 for all active teams
+      const initialScores: Record<string, number> = {};
+      activeTeams.forEach(team => {
+        initialScores[team] = 0;
+      });
+      setTeamScores(initialScores);
       
       // Then fetch events
       const fetchedEvents = await gameService.fetchGameEvents(gameId);
       console.log("Fetched events:", fetchedEvents);
       setEvents(fetchedEvents);
       
-      // Inicializa as pontuações zeradas para garantir
-      const initialScores: Record<string, number> = {};
-      
-      // Garante que temos times padrão mínimos para exibição
-      initialScores['white'] = 0;
-      initialScores['green'] = 0;
-      
-      // Adiciona times da formação
-      Object.keys(teamPlayers).forEach(team => {
-        initialScores[team] = 0;
-      });
-      
-      setTeamScores(initialScores);
-      
-      // Calcula as pontuações com base nos eventos
+      // Update scores based on events if any exist
       if (fetchedEvents && fetchedEvents.length > 0) {
         const calculatedScores = calculateScoresFromEvents(fetchedEvents, initialScores);
         console.log("Calculated scores:", calculatedScores);
@@ -217,13 +226,6 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
     // Cria uma cópia do objeto de scores iniciais para não modificar o original
     const scores = { ...initialScores };
     
-    // Make sure we have at least one team for score tracking
-    if (Object.keys(scores).length === 0) {
-      console.log('No teams available for score tracking, using default teams');
-      scores['white'] = 0;
-      scores['green'] = 0;
-    }
-    
     // Process each event and update the scores
     eventsList.forEach(event => {
       // Skip non-goal events
@@ -231,32 +233,23 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
         return;
       }
 
-      // Get the event team and standardize it
-      const eventTeam = standardizeTeamName(event.team);
+      // Get the event team
+      const eventTeam = event.team;
       
       if (event.event_type === 'goal') {
         console.log(`Processing goal for team ${eventTeam}`);
-        // Find the correct team to score
-        const teamToScore = findMatchingTeam(eventTeam, Object.keys(scores));
-        if (teamToScore) {
-          scores[teamToScore] += 1;
-          console.log(`Added goal to team ${teamToScore}, new score: ${scores[teamToScore]}`);
+        if (scores.hasOwnProperty(eventTeam)) {
+          scores[eventTeam] += 1;
+          console.log(`Added goal to team ${eventTeam}, new score: ${scores[eventTeam]}`);
         } else {
-          console.warn(`No matching team found for ${eventTeam} in available teams: ${JSON.stringify(Object.keys(scores))}`);
-          // If no matching team is found, try to add to the closest match or use the first team
-          if (Object.keys(scores).length > 0) {
-            const firstTeam = Object.keys(scores)[0];
-            scores[firstTeam] += 1;
-            console.log(`Assigned goal to first available team: ${firstTeam}`);
-          }
+          console.warn(`Team ${eventTeam} not found in available teams: ${JSON.stringify(Object.keys(scores))}`);
         }
       } 
       else if (event.event_type === 'own_goal') {
         console.log(`Processing own goal for team ${eventTeam}`);
         // For own goals, add point to all other teams
         Object.keys(scores).forEach(scoreTeam => {
-          const standardizedScoreTeam = standardizeTeamName(scoreTeam);
-          if (standardizedScoreTeam !== standardizeTeamName(eventTeam)) {
+          if (scoreTeam !== eventTeam) {
             scores[scoreTeam] += 1;
             console.log(`Added own goal point to opposing team ${scoreTeam}, new score: ${scores[scoreTeam]}`);
           }
@@ -266,39 +259,6 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
     
     console.log('Final calculated scores:', scores);
     return scores;
-  };
-  
-  // Helper function to standardize team names for comparison
-  const standardizeTeamName = (teamName: string): string => {
-    const lowerTeam = teamName.toLowerCase();
-    
-    // Common mappings
-    if (lowerTeam.includes('branco') || lowerTeam === 'white') return 'white';
-    if (lowerTeam.includes('verde') || lowerTeam === 'green') return 'green';
-    if (lowerTeam.includes('amarelo') || lowerTeam === 'yellow') return 'yellow';
-    
-    return lowerTeam;
-  };
-  
-  // Helper function to find a matching team in available teams
-  const findMatchingTeam = (teamName: string, availableTeams: string[]): string | null => {
-    // Direct match
-    if (availableTeams.includes(teamName)) {
-      return teamName;
-    }
-    
-    // Try finding by standardized name
-    const standardTeam = standardizeTeamName(teamName);
-    
-    for (const team of availableTeams) {
-      if (standardizeTeamName(team) === standardTeam) {
-        return team;
-      }
-    }
-    
-    // If no match found
-    console.warn(`No matching team found for ${teamName} in available teams: ${JSON.stringify(availableTeams)}`);
-    return availableTeams[0] || null; // Default to first team
   };
   
   const handleDeleteEvent = async (eventId: string) => {
