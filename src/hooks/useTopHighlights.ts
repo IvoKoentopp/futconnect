@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 export type TopHighlight = {
   id: string;
@@ -8,18 +8,6 @@ export type TopHighlight = {
   photoUrl: string | null;
   highlightCount: number;
   position: number;
-};
-
-type SupabaseMember = {
-  id: string;
-  name: string;
-  nickname: string | null;
-  photo_url: string | null;
-};
-
-type SupabaseHighlight = {
-  member_id: string;
-  members: SupabaseMember;
 };
 
 export const useTopHighlights = (clubId: string | undefined) => {
@@ -39,26 +27,57 @@ export const useTopHighlights = (clubId: string | undefined) => {
         setIsLoading(true);
         setError(null);
 
-        // Busca os destaques com join na tabela de membros
-        const { data, error: highlightsError } = await supabase
+        // Primeiro busca os jogos finalizados do clube
+        const { data: finishedGames, error: gamesError } = await supabase
+          .from('game_voting_control')
+          .select(`
+            game_id,
+            games!inner (
+              id,
+              date,
+              club_id
+            )
+          `)
+          .eq('is_finalized', true)
+          .eq('games.club_id', clubId);
+
+        if (gamesError) throw gamesError;
+
+        if (!finishedGames || finishedGames.length === 0) {
+          setTopHighlights([]);
+          return;
+        }
+
+        // Busca os destaques vencedores desses jogos
+        const { data: highlights, error: highlightsError } = await supabase
           .from('game_highlights')
-          .select('member_id, members:member_id(id, name, nickname, photo_url)')
-          .eq('club_id', clubId)
-          .eq('is_winner', true);
+          .select(`
+            id,
+            member_id,
+            votes_count,
+            members:member_id (
+              id,
+              name,
+              nickname,
+              photo_url
+            )
+          `)
+          .eq('is_winner', true)
+          .in('game_id', finishedGames.map(g => g.game_id));
 
         if (highlightsError) throw highlightsError;
 
-        if (!data || data.length === 0) {
+        if (!highlights || highlights.length === 0) {
           setTopHighlights([]);
           return;
         }
 
         // Agrupa e conta os destaques por membro
-        const highlightCounts = (data as unknown as SupabaseHighlight[]).reduce<Record<string, TopHighlight>>((acc, curr) => {
+        const highlightCounts = highlights.reduce<Record<string, TopHighlight>>((acc, curr) => {
           const memberId = curr.member_id;
           const member = curr.members;
 
-          if (!acc[memberId]) {
+          if (!acc[memberId] && member) {
             acc[memberId] = {
               id: member.id,
               name: member.name,
@@ -68,7 +87,11 @@ export const useTopHighlights = (clubId: string | undefined) => {
               position: 0
             };
           }
-          acc[memberId].highlightCount++;
+          
+          if (acc[memberId]) {
+            acc[memberId].highlightCount++;
+          }
+          
           return acc;
         }, {});
 
@@ -83,6 +106,7 @@ export const useTopHighlights = (clubId: string | undefined) => {
 
         setTopHighlights(sortedHighlights);
       } catch (err) {
+        console.error('Error fetching highlights:', err);
         setError(err instanceof Error ? err : new Error('Erro ao buscar destaques'));
       } finally {
         setIsLoading(false);

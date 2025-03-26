@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,10 +9,12 @@ import { useCompletedGames } from '@/hooks/useCompletedGames';
 import { useTopPlayers } from '@/hooks/useTopPlayers';
 import { usePlayerRanking } from '@/hooks/usePlayerRanking';
 import { useGameSummary } from '@/hooks/useGameSummary';
+import { useTopHighlights } from '@/hooks/useTopHighlights';
 import BirthdayCard from '@/components/BirthdayCard';
 import OverdueFeesTable from '@/components/OverdueFeesTable';
 import TopPlayersCard from '@/components/TopPlayersCard';
 import TopPlayerRankingCard from '@/components/TopPlayerRankingCard';
+import TopHighlightsCard from '@/components/TopHighlightsCard';
 import GameSummaryCard from '@/components/GameSummaryCard';
 import { Calendar, Users, TrendingUp, CreditCard, ArrowUp, ArrowDown, Trophy } from 'lucide-react';
 
@@ -25,6 +26,7 @@ const ClubDashboard = () => {
   const { gameCount, gamesThisMonth, isLoading: isLoadingGames, error: errorGames } = useCompletedGames(user?.activeClub?.id);
   const { topPlayers, isLoading: isLoadingTopPlayers, error: errorTopPlayers } = useTopPlayers(user?.activeClub?.id);
   const { topPlayers: topRankedPlayers, isLoading: isLoadingPlayerRanking, error: errorPlayerRanking } = usePlayerRanking(user?.activeClub?.id);
+  const { topHighlights, isLoading: isLoadingHighlights, error: errorHighlights } = useTopHighlights(user?.activeClub?.id);
   const { 
     averageGoalsPerGame, 
     averagePlayersPerGame, 
@@ -128,7 +130,7 @@ const ClubDashboard = () => {
         </Card>
       </div>
       
-      {/* Second Row: Top Players and Birthdays */}
+      {/* Second Row: Top Players, Rankings and Highlights */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         {/* Top Players Participation Card */}
         <div className="col-span-1">
@@ -152,20 +154,20 @@ const ClubDashboard = () => {
           )}
         </div>
         
-        {/* Birthdays Card */}
+        {/* Top Highlights Card */}
         <div className="col-span-1">
           {user?.activeClub?.id && (
-            <BirthdayCard 
-              birthdaysByMonth={birthdays}
-              isLoading={isLoadingBirthdays}
-              currentMonth={new Date().getMonth() + 1}
+            <TopHighlightsCard 
+              topHighlights={topHighlights}
+              isLoading={isLoadingHighlights}
+              error={errorHighlights}
             />
           )}
         </div>
       </div>
       
-      {/* Third Row: Game Summary and Overdue Fees */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Third Row: Game Summary, Birthdays and Overdue Fees */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Game Summary Card */}
         <div className="col-span-1">
           {user?.activeClub?.id && (
@@ -175,6 +177,17 @@ const ClubDashboard = () => {
               completionRate={completionRate}
               isLoading={isLoadingGameSummary}
               error={errorGameSummary}
+            />
+          )}
+        </div>
+        
+        {/* Birthdays Card */}
+        <div className="col-span-1">
+          {user?.activeClub?.id && (
+            <BirthdayCard 
+              birthdaysByMonth={birthdays}
+              isLoading={isLoadingBirthdays}
+              currentMonth={new Date().getMonth() + 1}
             />
           )}
         </div>
