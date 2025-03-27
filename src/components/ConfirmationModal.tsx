@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -7,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, X, UserCheck, UserX, User, Share2 } from 'lucide-react';
+import { Check, X, UserCheck, UserX, User, Share2, ShieldAlert } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import TeamFormationModal from './TeamFormationModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -25,83 +24,35 @@ interface ConfirmationModalProps {
   onClose: () => void;
   gameId: string;
   gameDate?: string;
+  gameStatus?: string;
 }
 
-const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationModalProps) => {
+const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: ConfirmationModalProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTeamFormation, setShowTeamFormation] = useState(false);
   const isMobile = useIsMobile();
-  // Add a new state to track the active tab for mobile view
   const [activeTab, setActiveTab] = useState<'confirmed' | 'declined' | 'unconfirmed'>('confirmed');
   
   const confirmed = members.filter(m => m.status === 'confirmed');
   const declined = members.filter(m => m.status === 'declined');
   const unconfirmed = members.filter(m => m.status === 'unconfirmed');
 
-  // Fetch members and their participation status for this game
-  useEffect(() => {
-    if (!isOpen || !gameId || !user?.activeClub?.id) return;
-    
-    const fetchMembers = async () => {
-      setLoading(true);
-      try {
-        console.log('Fetching members for game:', gameId, 'and club:', user.activeClub.id);
-        
-        // Fetch all club members with status 'Ativo' or 'Sistema'
-        const { data: membersData, error: membersError } = await supabase
-          .from('members')
-          .select('id, nickname')
-          .eq('club_id', user.activeClub.id)
-          .in('status', ['Ativo', 'Sistema']);
-        
-        if (membersError) throw membersError;
-        console.log('Fetched members:', membersData?.length);
-        
-        // Fetch existing participants for this game
-        const { data: participantsData, error: participantsError } = await supabase
-          .from('game_participants')
-          .select('member_id, status')
-          .eq('game_id', gameId);
-        
-        if (participantsError) throw participantsError;
-        console.log('Fetched participants:', participantsData?.length);
-        
-        // Map existing participants
-        const participantsMap = new Map();
-        participantsData?.forEach(participant => {
-          participantsMap.set(participant.member_id, participant.status);
-        });
-        
-        // Combine data and set default status as 'unconfirmed'
-        const combinedMembers = membersData?.map(member => ({
-          id: member.id,
-          nickname: member.nickname || member.id,
-          status: (participantsMap.get(member.id) || 'unconfirmed') as 'confirmed' | 'declined' | 'unconfirmed'
-        })) || [];
-        
-        console.log('Combined members:', combinedMembers.length);
-        console.log('Confirmed members:', combinedMembers.filter(m => m.status === 'confirmed').length);
-        
-        setMembers(combinedMembers);
-      } catch (error: any) {
-        console.error('Error loading members:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro ao carregar membros",
-          description: error.message || "Não foi possível carregar os membros do clube",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchMembers();
-  }, [isOpen, gameId, user?.activeClub?.id, toast]);
+  // Verifica se o jogo está agendado
+  const canUpdateParticipation = gameStatus === 'Agendado';
 
   const handleConfirm = async (memberId: string) => {
+    if (!canUpdateParticipation) {
+      toast({
+        variant: "destructive",
+        title: "Ação não permitida",
+        description: "Só é possível confirmar presença em jogos agendados.",
+      });
+      return;
+    }
+
     try {
       // Check if there's already an entry for this member in this game
       const { data: existingEntry } = await supabase
@@ -159,6 +110,15 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
   };
 
   const handleDecline = async (memberId: string) => {
+    if (!canUpdateParticipation) {
+      toast({
+        variant: "destructive",
+        title: "Ação não permitida",
+        description: "Só é possível recusar presença em jogos agendados.",
+      });
+      return;
+    }
+
     try {
       // Check if there's already an entry for this member in this game
       const { data: existingEntry } = await supabase
@@ -203,7 +163,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
       
       toast({
         title: "Recusa registrada",
-        description: "O jogador foi adicionado à lista de quem não vai jogar",
+        description: "O jogador foi adicionado à lista de ausentes",
       });
     } catch (error: any) {
       console.error('Error declining participation:', error);
@@ -288,6 +248,65 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
       {actionButton}
     </div>
   );
+
+  useEffect(() => {
+    if (!isOpen || !gameId || !user?.activeClub?.id) return;
+    
+    const fetchMembers = async () => {
+      setLoading(true);
+      try {
+        console.log('Fetching members for game:', gameId, 'and club:', user.activeClub.id);
+        
+        // Fetch all club members with status 'Ativo' or 'Sistema'
+        const { data: membersData, error: membersError } = await supabase
+          .from('members')
+          .select('id, nickname')
+          .eq('club_id', user.activeClub.id)
+          .in('status', ['Ativo', 'Sistema']);
+        
+        if (membersError) throw membersError;
+        console.log('Fetched members:', membersData?.length);
+        
+        // Fetch existing participants for this game
+        const { data: participantsData, error: participantsError } = await supabase
+          .from('game_participants')
+          .select('member_id, status')
+          .eq('game_id', gameId);
+        
+        if (participantsError) throw participantsError;
+        console.log('Fetched participants:', participantsData?.length);
+        
+        // Map existing participants
+        const participantsMap = new Map();
+        participantsData?.forEach(participant => {
+          participantsMap.set(participant.member_id, participant.status);
+        });
+        
+        // Combine data and set default status as 'unconfirmed'
+        const combinedMembers = membersData?.map(member => ({
+          id: member.id,
+          nickname: member.nickname || member.id,
+          status: (participantsMap.get(member.id) || 'unconfirmed') as 'confirmed' | 'declined' | 'unconfirmed'
+        })) || [];
+        
+        console.log('Combined members:', combinedMembers.length);
+        console.log('Confirmed members:', combinedMembers.filter(m => m.status === 'confirmed').length);
+        
+        setMembers(combinedMembers);
+      } catch (error: any) {
+        console.error('Error loading members:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao carregar membros",
+          description: error.message || "Não foi possível carregar os membros do clube",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMembers();
+  }, [isOpen, gameId, user?.activeClub?.id, toast]);
 
   return (
     <>
@@ -392,6 +411,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
                                   size="sm" 
                                   className="p-1 h-8 w-8 text-accent-foreground hover:bg-accent/10"
                                   onClick={() => handleDecline(member.id)}
+                                  disabled={!canUpdateParticipation}
                                 >
                                   <X className="h-4 w-4" />
                                 </Button>
@@ -418,6 +438,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
                                   size="sm" 
                                   className="p-1 h-8 w-8 text-futconnect-600 hover:bg-futconnect-50"
                                   onClick={() => handleConfirm(member.id)}
+                                  disabled={!canUpdateParticipation}
                                 >
                                   <Check className="h-4 w-4" />
                                 </Button>
@@ -445,6 +466,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
                                     size="sm" 
                                     className="p-1 h-8 w-8 text-futconnect-600 hover:bg-futconnect-50"
                                     onClick={() => handleConfirm(member.id)}
+                                    disabled={!canUpdateParticipation}
                                   >
                                     <Check className="h-4 w-4" />
                                   </Button>
@@ -453,6 +475,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
                                     size="sm" 
                                     className="p-1 h-8 w-8 text-accent-foreground hover:bg-accent/10"
                                     onClick={() => handleDecline(member.id)}
+                                    disabled={!canUpdateParticipation}
                                   >
                                     <X className="h-4 w-4" />
                                   </Button>
@@ -488,6 +511,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
                               size="sm" 
                               className="text-accent-foreground hover:text-accent-foreground hover:bg-accent/10 p-1 h-8 w-8"
                               onClick={() => handleDecline(member.id)}
+                              disabled={!canUpdateParticipation}
                               title="Mudar para não vai jogar"
                             >
                               <X className="h-4 w-4" />
@@ -518,6 +542,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
                               size="sm" 
                               className="text-futconnect-600 hover:text-futconnect-700 hover:bg-futconnect-50 p-1 h-8 w-8"
                               onClick={() => handleConfirm(member.id)}
+                              disabled={!canUpdateParticipation}
                               title="Mudar para vai jogar"
                             >
                               <Check className="h-4 w-4" />
@@ -551,6 +576,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
                               size="sm" 
                               className="text-futconnect-600 hover:text-futconnect-700 hover:bg-futconnect-50 p-1 h-8 w-8"
                               onClick={() => handleConfirm(member.id)}
+                              disabled={!canUpdateParticipation}
                               title="Confirmar presença"
                             >
                               <Check className="h-4 w-4" />
@@ -560,6 +586,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate }: ConfirmationMo
                               size="sm" 
                               className="text-accent-foreground hover:text-accent-foreground hover:bg-accent/10 p-1 h-8 w-8"
                               onClick={() => handleDecline(member.id)}
+                              disabled={!canUpdateParticipation}
                               title="Confirmar ausência"
                             >
                               <X className="h-4 w-4" />

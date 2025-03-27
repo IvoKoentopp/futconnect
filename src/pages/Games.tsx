@@ -79,6 +79,8 @@ const Games = () => {
   const [selectedGameForConfirmation, setSelectedGameForConfirmation] = useState<GameWithParticipants | null>(null);
   const [showStatisticsModal, setShowStatisticsModal] = useState(false);
   const [selectedGameForStatistics, setSelectedGameForStatistics] = useState<GameWithParticipants | null>(null);
+  const [showTeamFormation, setShowTeamFormation] = useState(false);
+  const [selectedGameForTeamFormation, setSelectedGameForTeamFormation] = useState<GameWithParticipants | null>(null);
   const { user } = useAuth();
   const { canEdit } = useAuthorization();
   const { toast } = useToast();
@@ -241,8 +243,8 @@ const Games = () => {
     // Find the game to use for team formation
     const gameToView = games.find(game => game.id === gameId);
     if (gameToView) {
-      setSelectedGameForConfirmation(gameToView);
-      setShowConfirmationModal(true);
+      setSelectedGameForTeamFormation(gameToView);
+      setShowTeamFormation(true);
     }
   };
 
@@ -333,9 +335,11 @@ const Games = () => {
       ? new Date(game.date).toLocaleDateString('pt-BR')
       : 'Data não especificada';
     
-    // Create the confirmation URL
-    // Always use the absolute production URL for Vercel deployment
-    const confirmationUrl = `https://futconnect-web-manager-82.vercel.app/game-confirmation?gameId=${gameId}`;
+    // Get the base URL from environment variable
+    const baseUrl = import.meta.env.VITE_APP_URL;
+    
+    // Create the confirmation URL using the environment-specific base URL
+    const confirmationUrl = `${baseUrl}/game-confirmation?gameId=${gameId}`;
     
     // Prepare the WhatsApp message
     const message = encodeURIComponent(
@@ -825,6 +829,26 @@ const Games = () => {
           }}
           gameId={selectedGameForConfirmation.id}
           gameDate={selectedGameForConfirmation.date}
+          gameStatus={selectedGameForConfirmation.status === 'scheduled' ? 'Agendado' : selectedGameForConfirmation.status === 'completed' ? 'Realizado' : 'Cancelado'}
+        />
+      )}
+
+      {/* Modal de formação de times */}
+      {showTeamFormation && selectedGameForTeamFormation && (
+        <TeamFormationModal
+          isOpen={showTeamFormation}
+          onClose={() => {
+            setShowTeamFormation(false);
+            setSelectedGameForTeamFormation(null);
+          }}
+          gameId={selectedGameForTeamFormation.id}
+          gameData={{
+            title: selectedGameForTeamFormation.title || 'Jogo',
+            location: selectedGameForTeamFormation.location,
+            date: selectedGameForTeamFormation.date,
+            status: selectedGameForTeamFormation.status === 'scheduled' ? 'Agendado' : selectedGameForTeamFormation.status === 'completed' ? 'Realizado' : 'Cancelado'
+          }}
+          confirmedPlayers={selectedGameForTeamFormation.participants.confirmed_players || []}
         />
       )}
 

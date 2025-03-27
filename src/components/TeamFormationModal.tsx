@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Users, UserPlus, UserMinus, Goal, BarChart2 } from 'lucide-react';
+import { Loader2, Users, UserPlus, UserMinus, Goal, BarChart2, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,6 +22,7 @@ interface TeamFormationModalProps {
     title: string;
     location: string;
     date: string;
+    status: string;
   };
   confirmedPlayers: ConfirmedPlayer[];
 }
@@ -59,6 +60,9 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
   const [teamConfigurations, setTeamConfigurations] = useState<TeamConfiguration[]>([]);
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  
+  // Verifica se o jogo está agendado
+  const canUpdateTeams = gameData.status === 'Agendado';
   
   // Format date for display
   const formattedDate = new Date(gameData.date).toLocaleDateString('pt-BR', {
@@ -232,6 +236,16 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
   const handleAssignToTeam = async (playerId: string, teamName: string) => {
     if (!teamFormation) return;
 
+    // Não permite nenhuma alteração se o jogo não está agendado
+    if (!canUpdateTeams) {
+      toast({
+        variant: "destructive",
+        title: "Ação não permitida",
+        description: "Só é possível formar times em jogos agendados.",
+      });
+      return;
+    }
+
     try {
       setIsSaving(true);
       console.log('Assigning player to team:', { playerId, teamName, formationId: teamFormation.id });
@@ -254,7 +268,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                  (teamName === 'Time Verde' && config.team_name === 'green')
       );
       
-      if (!teamConfig) {
+      if (!teamConfig && teamName !== '') { // Permite teamName vazio apenas se o jogo estiver agendado
         console.error(`Configuração do time não encontrada: ${teamName}`);
         toast({
           title: "Erro ao atribuir jogador",
@@ -265,7 +279,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
       }
       
       // Usar o team_name do banco de dados para salvar
-      const dbTeamValue = teamConfig.team_name;
+      const dbTeamValue = teamConfig?.team_name || '';
       
       console.log(`Usando valor do banco de dados para o time: '${dbTeamValue}'`);
       
@@ -283,64 +297,63 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
       }
       
       if (existingMember) {
-        // Delete existing team assignment
-        const { error: deleteError } = await supabase
-          .from('team_members')
-          .delete()
-          .eq('id', existingMember.id);
-        
-        if (deleteError) {
-          console.error('Error deleting team member:', deleteError);
-          throw deleteError;
+        // Delete existing team assignment only if assigning to a new team
+        if (teamName !== '') {
+          const { error: deleteError } = await supabase
+            .from('team_members')
+            .delete()
+            .eq('id', existingMember.id);
+          
+          if (deleteError) {
+            console.error('Error deleting team member:', deleteError);
+            throw deleteError;
+          }
         }
       }
       
-      // Insert a new entry with the correct team value
-      const { data: newTeamMember, error: insertError } = await supabase
-        .from('team_members')
-        .insert({
-          team_formation_id: teamFormation.id,
-          member_id: playerId,
-          team: dbTeamValue // Use the database value directly from team configuration
-        })
-        .select()
-        .single();
-      
-      if (insertError) {
-        console.error('Error creating/updating team member:', insertError);
-        throw insertError;
+      // Insert a new entry only if assigning to a team (not removing)
+      if (teamName !== '') {
+        const { data: newTeamMember, error: insertError } = await supabase
+          .from('team_members')
+          .insert({
+            team_formation_id: teamFormation.id,
+            member_id: playerId,
+            team: dbTeamValue
+          });
+        
+        if (insertError) {
+          console.error('Error inserting team member:', insertError);
+          throw insertError;
+        }
       }
       
-      console.log('Successfully assigned player to team:', newTeamMember);
-      
-      // For the display in UI, use the display name format
-      const displayTeamName = getDisplayTeamName(dbTeamValue);
-      
-      // Update local state with the display name
-      setPlayersWithTeam(players => 
-        players.map(player => 
-          player.id === playerId 
-            ? { ...player, team: displayTeamName } 
-            : player
+      // Update local state
+      setPlayersWithTeam(prev => 
+        prev.map(p => 
+          p.id === playerId 
+            ? { ...p, team: teamName === '' ? undefined : teamName }
+            : p
         )
       );
       
       toast({
-        title: "Jogador atribuído",
-        description: `Jogador adicionado ao ${displayTeamName}.`,
+        title: teamName === '' ? "Jogador removido do time" : "Time atualizado",
+        description: teamName === '' 
+          ? "O jogador foi removido do time com sucesso"
+          : "O jogador foi atribuído ao time com sucesso",
       });
-    } catch (error) {
-      console.error('Failed to assign player to team:', error);
+    } catch (error: any) {
+      console.error('Error assigning player to team:', error);
       toast({
-        title: "Erro ao atribuir jogador",
-        description: "Não foi possível atribuir o jogador ao time.",
+        title: "Erro ao atualizar time",
+        description: error.message || "Não foi possível atualizar o time do jogador",
         variant: "destructive",
       });
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   const handleRemoveFromTeam = async (playerId: string) => {
     if (!teamFormation) return;
     
@@ -503,7 +516,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
             className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
             onClick={() => handleRemoveFromTeam(player.id)}
             title="Remover do time"
-            disabled={isSaving}
+            disabled={isSaving || !canUpdateTeams}
           >
             <UserMinus className="h-4 w-4" />
           </Button>
@@ -512,9 +525,9 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
             {teamConfigurations.length > 0 ? (
               <Select
                 onValueChange={(value) => handleAssignToTeam(player.id, value)}
-                disabled={isSaving}
+                disabled={!canUpdateTeams || isSaving}
               >
-                <SelectTrigger className="w-[130px] h-8">
+                <SelectTrigger className="w-[130px]">
                   <SelectValue placeholder="Selecionar time" />
                 </SelectTrigger>
                 <SelectContent>
@@ -530,6 +543,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                       </div>
                     </SelectItem>
                   ))}
+                  {canUpdateTeams && <SelectItem value="">Sem time</SelectItem>}
                 </SelectContent>
               </Select>
             ) : (
@@ -567,6 +581,14 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
               <p className="mt-1">Jogadores confirmados: {confirmedPlayers.length}</p>
             </div>
           </DialogHeader>
+          
+          {/* Aviso quando o jogo não está agendado */}
+          {!canUpdateTeams && (
+            <div className="flex items-center gap-2 p-4 bg-yellow-50 text-yellow-800 rounded-md mb-4">
+              <ShieldAlert className="h-5 w-5" />
+              <p>Não é possível alterar os times pois o jogo não está mais agendado.</p>
+            </div>
+          )}
           
           {isLoading ? (
             <div className="flex justify-center items-center py-12">
