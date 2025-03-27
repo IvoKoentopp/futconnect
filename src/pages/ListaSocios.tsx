@@ -1,9 +1,9 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -27,6 +27,7 @@ import {
   MoreVertical,
   Save,
   Upload,
+  ShieldAlert
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { format, parse } from 'date-fns';
@@ -89,6 +90,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 const ListaSocios = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canEdit } = useAuthorization();
   const isMobile = useIsMobile();
   const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -221,6 +223,18 @@ const ListaSocios = () => {
 
   // Handle toggling edit mode
   const handleToggleEditMode = () => {
+    // Verifica se o usuário é administrador ou se é o próprio sócio
+    const canEditMember = canEdit || (selectedMember && user?.email === selectedMember.email);
+    
+    if (!canEditMember) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Você só pode editar suas próprias informações.",
+      });
+      return;
+    }
+
     if (!isEditMode && selectedMember) {
       setEditedMember({...selectedMember});
     }
@@ -257,6 +271,70 @@ const ListaSocios = () => {
   // Handle saving changes
   const handleSaveChanges = async () => {
     if (!editedMember) return;
+
+    // Verifica se o usuário é administrador ou se é o próprio sócio
+    const canEditMember = canEdit || (selectedMember && user?.email === selectedMember.email);
+    
+    if (!canEditMember) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Você só pode editar suas próprias informações.",
+      });
+      return;
+    }
+
+    // Se não for administrador, limita os campos que podem ser editados
+    if (!canEdit && user?.email === selectedMember.email) {
+      const allowedFields = ['nickname', 'email', 'phone', 'birth_date', 'positions'];
+      const updateData: any = {};
+      
+      allowedFields.forEach(field => {
+        switch (field) {
+          case 'nickname':
+            updateData.nickname = editedMember.nickname === '-' ? null : editedMember.nickname;
+            break;
+          case 'email':
+            updateData.email = editedMember.email;
+            break;
+          case 'phone':
+            updateData.phone = editedMember.phone === '-' ? null : editedMember.phone;
+            break;
+          case 'birth_date':
+            updateData.birth_date = editedMember.birthDate instanceof Date ? editedMember.birthDate.toISOString() : editedMember.birthDate;
+            break;
+          case 'positions':
+            updateData.positions = editedMember.positions || [];
+            break;
+        }
+      });
+
+      try {
+        const { error } = await supabase
+          .from('members')
+          .update(updateData)
+          .eq('id', editedMember.id);
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Perfil atualizado",
+          description: "Suas informações foram atualizadas com sucesso.",
+        });
+        
+        fetchMembers();
+        setSelectedMember(editedMember);
+        setIsEditMode(false);
+      } catch (error: any) {
+        console.error("Erro ao atualizar sócio:", error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: `Erro ao atualizar perfil: ${error.message}`,
+        });
+      }
+      return;
+    }
     
     try {
       // Format dates for the database
@@ -308,13 +386,21 @@ const ListaSocios = () => {
   // Handle opening delete confirmation dialog
   const handleOpenDeleteDialog = (e: React.MouseEvent, member: any) => {
     e.stopPropagation();
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem excluir sócios.",
+      });
+      return;
+    }
     setMemberToDelete(member);
     setIsDeleteDialogOpen(true);
   };
-  
+
   // Handle member deletion
   const handleDeleteMember = async () => {
-    if (!memberToDelete) return;
+    if (!memberToDelete || !canEdit) return;
     
     try {
       const { error } = await supabase
@@ -346,9 +432,18 @@ const ListaSocios = () => {
       });
     }
   };
-  
+
   // Handle export members to Excel
   const handleExportToExcel = () => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem exportar a lista de sócios.",
+      });
+      return;
+    }
+
     try {
       // Create data array for Excel export
       const exportData = members.map(member => {
@@ -394,8 +489,7 @@ const ListaSocios = () => {
       });
     }
   };
-  
-  
+
   return (
     <div className="space-y-6">
       <div>
@@ -419,14 +513,16 @@ const ListaSocios = () => {
               />
             </div>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                className="h-10"
-                onClick={handleExportToExcel}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Exportar para Excel
-              </Button>
+              {canEdit && (
+                <Button 
+                  variant="outline" 
+                  className="h-10"
+                  onClick={handleExportToExcel}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar para Excel
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -478,17 +574,19 @@ const ListaSocios = () => {
                       </div>
                       
                       <div className="mt-3 flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDeleteDialog(e, member);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDeleteDialog(e, member);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -536,23 +634,25 @@ const ListaSocios = () => {
                             <StatusBadge status={member.status} />
                           </TableCell>
                           <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Abrir menu</span>
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem 
-                                  className="text-red-600"
-                                  onClick={(e) => handleOpenDeleteDialog(e, member)}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Excluir
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            {canEdit && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Abrir menu</span>
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem 
+                                    className="text-red-600"
+                                    onClick={(e) => handleOpenDeleteDialog(e, member)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Excluir
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -947,12 +1047,14 @@ const ListaSocios = () => {
                         <X className="mr-2 h-4 w-4" />
                         Fechar
                       </Button>
-                      <Button 
-                        onClick={handleToggleEditMode}
-                      >
-                        <Edit className="mr-2 h-4 w-4" />
-                        Editar
-                      </Button>
+                      {canEdit || (selectedMember && user?.email === selectedMember.email) ? (
+                        <Button 
+                          onClick={handleToggleEditMode}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Editar
+                        </Button>
+                      ) : null}
                     </>
                   )}
                 </div>
@@ -982,6 +1084,14 @@ const ListaSocios = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Aviso de permissões */}
+      {!canEdit && (
+        <div className="flex items-center gap-2 p-4 bg-yellow-50 text-yellow-800 rounded-md mb-4">
+          <ShieldAlert className="h-5 w-5" />
+          <p>Você está no modo visualização. Você pode editar apenas suas próprias informações.</p>
+        </div>
+      )}
     </div>
   );
 };

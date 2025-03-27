@@ -19,9 +19,11 @@ import {
   Loader2,
   BarChart,
   CalendarDays,
-  MapPin
+  MapPin,
+  ShieldAlert
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { GameFormModal } from '@/components/GameFormModal';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -78,6 +80,7 @@ const Games = () => {
   const [showStatisticsModal, setShowStatisticsModal] = useState(false);
   const [selectedGameForStatistics, setSelectedGameForStatistics] = useState<GameWithParticipants | null>(null);
   const { user } = useAuth();
+  const { canEdit } = useAuthorization();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -96,7 +99,12 @@ const Games = () => {
 
   // Create game mutation
   const createGameMutation = useMutation({
-    mutationFn: (gameData: any) => gameService.createGame(gameData, user?.activeClub?.id || ''),
+    mutationFn: (gameData: any) => {
+      if (!canEdit) {
+        throw new Error('Apenas administradores podem criar jogos.');
+      }
+      return gameService.createGame(gameData, user?.activeClub?.id || '');
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['games'] });
       toast({
@@ -115,8 +123,12 @@ const Games = () => {
 
   // Update game mutation
   const updateGameMutation = useMutation({
-    mutationFn: ({ gameId, gameData }: { gameId: string, gameData: any }) => 
-      gameService.updateGame(gameId, gameData),
+    mutationFn: ({ gameId, gameData }: { gameId: string, gameData: any }) => {
+      if (!canEdit) {
+        throw new Error('Apenas administradores podem editar jogos.');
+      }
+      return gameService.updateGame(gameId, gameData);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['games'] });
       toast({
@@ -135,7 +147,12 @@ const Games = () => {
 
   // Delete game mutation
   const deleteGameMutation = useMutation({
-    mutationFn: (gameId: string) => gameService.deleteGame(gameId),
+    mutationFn: (gameId: string) => {
+      if (!canEdit) {
+        throw new Error('Apenas administradores podem excluir jogos.');
+      }
+      return gameService.deleteGame(gameId);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['games'] });
       toast({
@@ -192,10 +209,26 @@ const Games = () => {
   };
 
   const handleDeleteGame = (gameId: string) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem excluir jogos.",
+      });
+      return;
+    }
     deleteGameMutation.mutate(gameId);
   };
 
   const handleEditGame = (gameId: string) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem editar jogos.",
+      });
+      return;
+    }
     // Find the game to edit
     const gameToEdit = games.find(game => game.id === gameId);
     if (gameToEdit) {
@@ -337,14 +370,16 @@ const Games = () => {
               <StatusBadge status={game.status} />
               <h3 className="text-lg font-semibold mt-2">{game.title || "Jogo"}</h3>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => handleDeleteGame(game.id)} 
-              className="text-red-600 hover:text-red-800 hover:bg-red-100 h-8 w-8"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {canEdit && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => handleDeleteGame(game.id)} 
+                className="text-red-600 hover:text-red-800 hover:bg-red-100 h-8 w-8"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="pb-2">
@@ -381,26 +416,28 @@ const Games = () => {
           </div>
         </CardContent>
         <CardFooter className="flex justify-between pt-2">
-          <div className="flex gap-1">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleEditGame(game.id)}
-              className="h-8"
-            >
-              <PenLine className="h-3.5 w-3.5 mr-1" />
-              Editar
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleFormTeams(game.id)} 
-              className="h-8"
-            >
-              <Users className="h-3.5 w-3.5 mr-1" />
-              Times
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex gap-1">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleEditGame(game.id)}
+                className="h-8"
+              >
+                <PenLine className="h-3.5 w-3.5 mr-1" />
+                Editar
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleFormTeams(game.id)} 
+                className="h-8"
+              >
+                <Users className="h-3.5 w-3.5 mr-1" />
+                Times
+              </Button>
+            </div>
+          )}
           <div className="flex gap-1">
             <Button 
               variant="outline" 
@@ -540,43 +577,47 @@ const Games = () => {
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-right">
                   <div className="flex justify-center space-x-2">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleDeleteGame(game.id)}
-                            className="text-red-600 hover:text-red-800 hover:bg-red-100"
-                            disabled={deleteGameMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Deletar</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleEditGame(game.id)}
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-                          >
-                            <PenLine className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Editar</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-
+                    {canEdit && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleDeleteGame(game.id)}
+                              className="text-red-600 hover:text-red-800 hover:bg-red-100"
+                              disabled={deleteGameMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Deletar</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    
+                    {canEdit && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleEditGame(game.id)}
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                            >
+                              <PenLine className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Editar</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -668,26 +709,28 @@ const Games = () => {
             Gerencie os jogos e partidas do {user?.activeClub?.name}
           </p>
         </div>
-        <Button 
-          className="bg-futconnect-600 hover:bg-futconnect-700 w-full sm:w-auto"
-          onClick={() => {
-            setSelectedGame(null);
-            setShowGameModal(true);
-          }}
-          disabled={createGameMutation.isPending}
-        >
-          {createGameMutation.isPending ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Criando...
-            </>
-          ) : (
-            <>
-              <CalendarPlus className="mr-2 h-4 w-4" />
-              Novo Jogo
-            </>
-          )}
-        </Button>
+        {canEdit && (
+          <Button 
+            className="bg-futconnect-600 hover:bg-futconnect-700 w-full sm:w-auto"
+            onClick={() => {
+              setSelectedGame(null);
+              setShowGameModal(true);
+            }}
+            disabled={createGameMutation.isPending}
+          >
+            {createGameMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Criando...
+              </>
+            ) : (
+              <>
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                Novo Jogo
+              </>
+            )}
+          </Button>
+        )}
       </div>
       
       <Card>
@@ -706,6 +749,14 @@ const Games = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Aviso de permissões */}
+          {!canEdit && (
+            <div className="flex items-center gap-2 p-4 bg-yellow-50 text-yellow-800 rounded-md mb-4">
+              <ShieldAlert className="h-5 w-5" />
+              <p>Você está no modo visualização. Apenas administradores podem criar, editar ou excluir jogos.</p>
+            </div>
+          )}
+
           <Tabs defaultValue="all" onValueChange={setActiveTab} className="w-full">
             <TabsList className="mb-4 w-full md:w-auto overflow-x-auto flex whitespace-nowrap">
               <TabsTrigger value="all" className="flex-shrink-0">

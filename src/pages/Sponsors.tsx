@@ -38,11 +38,13 @@ import {
   Shuffle,
   ListPlus,
   Filter,
-  Printer
+  Printer,
+  ShieldAlert
 } from 'lucide-react';
 import { DateInput } from '@/components/ui/date-input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseExactDate, formatDisplayDate } from '@/lib/utils';
@@ -168,6 +170,7 @@ const Sponsors = () => {
   
   const { toast } = useToast();
   const { user } = useAuth();
+  const { canEdit } = useAuthorization();
   const queryClient = useQueryClient();
   const clubId = user?.activeClub?.id || '';
 
@@ -294,6 +297,10 @@ const Sponsors = () => {
   // Create event type mutation
   const createEventTypeMutation = useMutation({
     mutationFn: async (name: string) => {
+      if (!canEdit) {
+        throw new Error('Apenas administradores podem criar tipos de evento.');
+      }
+
       const { data, error } = await supabase
         .from('event_types')
         .insert([{ name, club_id: clubId }])
@@ -331,6 +338,10 @@ const Sponsors = () => {
   // Create sponsor event mutation
   const createEventMutation = useMutation({
     mutationFn: async (eventData: EventFormData) => {
+      if (!canEdit) {
+        throw new Error('Apenas administradores podem criar eventos.');
+      }
+
       const { data, error } = await supabase
         .from('sponsor_events')
         .insert([{
@@ -475,6 +486,10 @@ const Sponsors = () => {
   // Enhanced batch event creation with scheduled dates
   const createBatchEventsMutation = useMutation({
     mutationFn: async ({ eventType, dates }: { eventType: string, dates: Date[] }) => {
+      if (!canEdit) {
+        throw new Error('Apenas administradores podem criar eventos em lote.');
+      }
+
       // 1. Get all members who don't have any events yet
       const { data: existingEvents } = await supabase
         .from('sponsor_events')
@@ -572,6 +587,10 @@ const Sponsors = () => {
   // Update sponsor event mutation
   const updateEventMutation = useMutation({
     mutationFn: async ({ id, eventData }: { id: string; eventData: EventFormData }) => {
+      if (!canEdit) {
+        throw new Error('Apenas administradores podem atualizar eventos.');
+      }
+
       const { data, error } = await supabase
         .from('sponsor_events')
         .update({
@@ -613,6 +632,10 @@ const Sponsors = () => {
   // Delete sponsor event mutation
   const deleteEventMutation = useMutation({
     mutationFn: async (id: string) => {
+      if (!canEdit) {
+        throw new Error('Apenas administradores podem excluir eventos.');
+      }
+
       const { error } = await supabase
         .from('sponsor_events')
         .delete()
@@ -640,6 +663,15 @@ const Sponsors = () => {
   
   // Handle opening the dialog for a new event
   const handleNewEvent = () => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem criar eventos.",
+      });
+      return;
+    }
+
     setSelectedEvent(null);
     reset({
       date: '',
@@ -653,6 +685,15 @@ const Sponsors = () => {
   
   // Handle opening the dialog for editing an event
   const handleEditEvent = (event: SponsorEvent) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem editar eventos.",
+      });
+      return;
+    }
+
     setSelectedEvent(event);
     reset({
       date: event.date,
@@ -666,6 +707,15 @@ const Sponsors = () => {
   
   // Handle deleting an event
   const handleDeleteEvent = (id: string) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem excluir eventos.",
+      });
+      return;
+    }
+
     if (window.confirm('Tem certeza que deseja excluir este evento?')) {
       deleteEventMutation.mutate(id);
     }
@@ -682,6 +732,15 @@ const Sponsors = () => {
   
   // Handle creating a new event type
   const handleNewEventTypeSubmit = () => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem criar tipos de evento.",
+      });
+      return;
+    }
+
     if (newEventTypeName.trim()) {
       createEventTypeMutation.mutate(newEventTypeName.trim());
     }
@@ -689,6 +748,15 @@ const Sponsors = () => {
   
   // Open batch event dialog with new settings
   const handleOpenBatchEventDialog = async () => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem criar eventos em lote.",
+      });
+      return;
+    }
+
     setIsBatchEventDialogOpen(true);
     setBatchEventType('');
     setStartDate(new Date());
@@ -700,6 +768,15 @@ const Sponsors = () => {
   
   // Generate batch events with calculated dates
   const handleGenerateBatchEvents = async () => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem criar eventos em lote.",
+      });
+      return;
+    }
+
     if (!batchEventType) {
       toast({
         title: 'Erro',
@@ -738,6 +815,15 @@ const Sponsors = () => {
   
   // Open random event dialog
   const handleOpenRandomEventDialog = async () => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem criar eventos aleatórios.",
+      });
+      return;
+    }
+
     setIsRandomEventDialogOpen(true);
     setRandomEventType('');
     setRandomSponsorId('');
@@ -745,6 +831,15 @@ const Sponsors = () => {
   
   // Select random sponsor without events
   const handleSelectRandomSponsor = async () => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem criar eventos aleatórios.",
+      });
+      return;
+    }
+
     if (!randomEventType) {
       toast({
         title: 'Erro',
@@ -801,6 +896,15 @@ const Sponsors = () => {
   
   // Create event for random sponsor
   const handleCreateRandomEvent = () => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem criar eventos.",
+      });
+      return;
+    }
+
     if (!randomEventType || !randomSponsorId) {
       toast({
         title: 'Erro',
@@ -1021,37 +1125,41 @@ const Sponsors = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="print"
-            onClick={handlePrintEvents}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Imprimir listagem de eventos
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={handleOpenBatchEventDialog}
-            className="bg-white hover:bg-gray-100"
-          >
-            <ListPlus className="mr-2 h-4 w-4" />
-            Gerar Lista
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={handleOpenRandomEventDialog}
-            className="bg-white hover:bg-gray-100"
-          >
-            <Shuffle className="mr-2 h-4 w-4" />
-            Sortear
-          </Button>
-          <Button 
-            className="bg-futconnect-600 hover:bg-futconnect-700"
-            onClick={handleNewEvent}
-          >
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Novo Evento
-          </Button>
+          {canEdit && (
+            <>
+              <Button 
+                variant="print"
+                onClick={handlePrintEvents}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Imprimir listagem de eventos
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleOpenBatchEventDialog}
+                className="bg-white hover:bg-gray-100"
+              >
+                <ListPlus className="mr-2 h-4 w-4" />
+                Gerar Lista
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleOpenRandomEventDialog}
+                className="bg-white hover:bg-gray-100"
+              >
+                <Shuffle className="mr-2 h-4 w-4" />
+                Sortear
+              </Button>
+              <Button 
+                className="bg-futconnect-600 hover:bg-futconnect-700"
+                onClick={handleNewEvent}
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Novo Evento
+              </Button>
+            </>
+          )}
         </div>
       </div>
       
@@ -1171,25 +1279,27 @@ const Sponsors = () => {
                         </span>
                       </TableCell>
                       <TableCell className="text-right no-print">
-                        <div className="flex justify-end space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditEvent(event)}
-                            className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-                          >
-                            <PenLine className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteEvent(event.id)}
-                            className="text-red-600 hover:text-red-800 hover:bg-red-100"
-                            disabled={deleteEventMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        {canEdit && (
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditEvent(event)}
+                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                            >
+                              <PenLine className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteEvent(event.id)}
+                              className="text-red-600 hover:text-red-800 hover:bg-red-100"
+                              disabled={deleteEventMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1629,6 +1739,13 @@ const Sponsors = () => {
           </div>
         </DialogContent>
       </Dialog>
+      
+      {!canEdit && (
+        <div className="flex items-center gap-2 p-4 bg-yellow-50 text-yellow-800 rounded-md mb-4">
+          <ShieldAlert className="h-5 w-5" />
+          <p>Você está no modo visualização. Apenas administradores podem criar, editar ou excluir eventos.</p>
+        </div>
+      )}
     </div>
   );
 };
