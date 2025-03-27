@@ -8,7 +8,8 @@ import {
   FileUp,
   Mail,
   Loader2,
-  Users
+  Users,
+  ShieldAlert
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthorization } from "@/hooks/useAuthorization";
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { ClubAdminSettings } from "./ClubAdminSettings";
@@ -25,6 +27,7 @@ import { TeamConfigurationSettings } from "./TeamConfigurationSettings";
 export const ClubSettings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canEdit } = useAuthorization();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const statuteInputRef = useRef<HTMLInputElement>(null);
   const anthemInputRef = useRef<HTMLInputElement>(null);
@@ -98,609 +101,371 @@ export const ClubSettings = () => {
   };
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem editar as configurações do clube.",
+      });
+      return;
+    }
+
     const { name, value } = e.target;
     setClubForm(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleLogoChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Criar preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      
-      try {
-        setIsLoading(true);
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${uuidv4()}.${fileExt}`;
-        const filePath = `logos/${fileName}`;
-        
-        // Upload do arquivo para o Supabase Storage
-        const { data, error } = await supabase.storage
-          .from('club-files')
-          .upload(filePath, file);
-        
-        if (error) {
-          console.error('Error uploading logo:', error);
-          throw error;
-        }
-        
-        // Obter URL pública do arquivo
-        const { data: publicURL } = supabase.storage
-          .from('club-files')
-          .getPublicUrl(filePath);
-        
-        setClubForm(prev => ({ ...prev, logoUrl: publicURL.publicUrl }));
-        
-        toast({
-          title: "Logo enviado",
-          description: "A imagem foi carregada com sucesso.",
-        });
-      } catch (error) {
-        console.error('Erro ao fazer upload do logo:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro no upload",
-          description: "Não foi possível enviar o logo. Tente novamente.",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-  
-  const handleFileUpload = async (
-    file: File | null, 
-    folderPath: string, 
-    successMessage: string,
-    updateField: string
-  ) => {
-    if (!file) return null;
-    
-    try {
-      setIsLoading(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${uuidv4()}.${fileExt}`;
-      const filePath = `${folderPath}/${fileName}`;
-      
-      // Upload do arquivo para o Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('club-files')
-        .upload(filePath, file);
-      
-      if (error) {
-        console.error(`Error uploading file to ${folderPath}:`, error);
-        throw error;
-      }
-      
-      // Obter URL pública do arquivo
-      const { data: publicURL } = supabase.storage
-        .from('club-files')
-        .getPublicUrl(filePath);
-      
-      setClubForm(prev => ({ ...prev, [updateField]: publicURL.publicUrl }));
-      
-      toast({
-        title: "Arquivo enviado",
-        description: successMessage,
-      });
-      
-      return publicURL.publicUrl;
-    } catch (error) {
-      console.error(`Erro ao fazer upload do arquivo para ${folderPath}:`, error);
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>, type: 'logo' | 'statute' | 'anthem' | 'invitation') => {
+    if (!canEdit) {
       toast({
         variant: "destructive",
-        title: "Erro no upload",
-        description: "Não foi possível enviar o arquivo. Tente novamente.",
-      });
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handleStatuteFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setStatuteFile(file);
-      await handleFileUpload(
-        file, 
-        'statutes', 
-        "O estatuto foi carregado com sucesso.", 
-        'statuteUrl'
-      );
-    }
-  };
-  
-  const handleAnthemFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setAnthemFile(file);
-      await handleFileUpload(
-        file, 
-        'anthems', 
-        "O hino foi carregado com sucesso.", 
-        'anthemUrl'
-      );
-    }
-  };
-  
-  const handleInvitationFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setInvitationFile(file);
-      await handleFileUpload(
-        file, 
-        'invitations', 
-        "O convite foi carregado com sucesso.", 
-        'invitationUrl'
-      );
-    }
-  };
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user?.activeClub?.id) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao salvar",
-        description: "Nenhum clube ativo selecionado.",
+        title: "Acesso negado",
+        description: "Apenas administradores podem editar as configurações do clube.",
       });
       return;
     }
-    
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     try {
       setIsLoading(true);
       
-      // Verificar se já existe configuração para este clube
-      const { data: existingSettings, error: checkError } = await supabase
-        .from('club_settings')
-        .select('id')
-        .eq('club_id', user.activeClub.id)
-        .maybeSingle();
+      // Gerar um nome único para o arquivo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${uuidv4()}.${fileExt}`;
+      const filePath = `${user?.activeClub?.id}/${type}/${fileName}`;
       
-      if (checkError) {
-        throw checkError;
+      // Upload do arquivo para o storage
+      const { error: uploadError } = await supabase.storage
+        .from('club-files')
+        .upload(filePath, file);
+      
+      if (uploadError) {
+        throw uploadError;
       }
       
-      let updateError;
+      // Obter a URL pública do arquivo
+      const { data: { publicUrl } } = supabase.storage
+        .from('club-files')
+        .getPublicUrl(filePath);
       
-      if (existingSettings) {
-        // Atualizar configurações existentes
-        const { error } = await supabase
-          .from('club_settings')
-          .update({
-            logo_url: clubForm.logoUrl,
-            statute_url: clubForm.statuteUrl,
-            anthem_url: clubForm.anthemUrl,
-            anthem_link_url: clubForm.anthemLinkUrl,
-            invitation_url: clubForm.invitationUrl,
-            invitation_link_url: clubForm.invitationLinkUrl,
-            updated_at: new Date().toISOString()
-          })
-          .eq('club_id', user.activeClub.id);
-        
-        updateError = error;
-      } else {
-        // Criar novas configurações
-        const { error } = await supabase
-          .from('club_settings')
-          .insert({
-            club_id: user.activeClub.id,
-            logo_url: clubForm.logoUrl,
-            statute_url: clubForm.statuteUrl,
-            anthem_url: clubForm.anthemUrl,
-            anthem_link_url: clubForm.anthemLinkUrl,
-            invitation_url: clubForm.invitationUrl,
-            invitation_link_url: clubForm.invitationLinkUrl
-          });
-        
-        updateError = error;
-      }
-      
-      if (updateError) throw updateError;
-      
-      // Atualizar o nome do clube, se necessário
-      if (clubForm.name !== user.activeClub.name) {
-        const { error: clubUpdateError } = await supabase
-          .from('clubs')
-          .update({ 
-            name: clubForm.name,
-            updated_at: new Date().toISOString() 
-          })
-          .eq('id', user.activeClub.id);
-        
-        if (clubUpdateError) throw clubUpdateError;
+      // Atualizar o estado com a URL do arquivo
+      if (type === 'logo') {
+        setLogoPreview(publicUrl);
+        setClubForm(prev => ({ ...prev, logoUrl: publicUrl }));
+      } else if (type === 'statute') {
+        setStatuteFile(file);
+        setClubForm(prev => ({ ...prev, statuteUrl: publicUrl }));
+      } else if (type === 'anthem') {
+        setAnthemFile(file);
+        setClubForm(prev => ({ ...prev, anthemUrl: publicUrl }));
+      } else if (type === 'invitation') {
+        setInvitationFile(file);
+        setClubForm(prev => ({ ...prev, invitationUrl: publicUrl }));
       }
       
       toast({
-        title: "Configurações do clube atualizadas",
-        description: "As informações do seu clube foram atualizadas com sucesso.",
+        title: "Arquivo enviado com sucesso",
+        description: "O arquivo foi enviado e salvo com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao salvar configurações do clube:', error);
+      console.error('Erro ao fazer upload do arquivo:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao salvar configurações",
-        description: "Ocorreu um problema ao salvar as configurações do clube.",
+        title: "Erro ao enviar arquivo",
+        description: "Não foi possível fazer o upload do arquivo.",
       });
     } finally {
       setIsLoading(false);
     }
   };
   
+  const handleSubmit = async () => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Apenas administradores podem editar as configurações do clube.",
+      });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Atualizar as configurações do clube
+      const { error } = await supabase
+        .from('club_settings')
+        .upsert({
+          club_id: user?.activeClub?.id,
+          description: clubForm.description,
+          logo_url: clubForm.logoUrl,
+          statute_url: clubForm.statuteUrl,
+          anthem_url: clubForm.anthemUrl,
+          invitation_url: clubForm.invitationUrl,
+          anthem_link_url: clubForm.anthemLinkUrl,
+          invitation_link_url: clubForm.invitationLinkUrl
+        });
+      
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Configurações salvas",
+        description: "As configurações do clube foram atualizadas com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao salvar configurações:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar as configurações do clube.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isFetching) {
     return (
-      <div className="flex justify-center items-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-futconnect-600" />
-        <span className="ml-2">Carregando configurações...</span>
+      <div className="flex items-center justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
   }
-  
+
+  if (!user?.activeClub?.id) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <p className="text-muted-foreground">Selecione um clube para ver as configurações.</p>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="space-y-6">
-        {/* Basic Club Information Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-futconnect-600" />
-              Informações Básicas do Clube
-            </CardTitle>
-            <CardDescription>
-              Configure as informações básicas do seu clube que serão exibidas para os membros.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="clubName">Nome do Clube</Label>
-                <Input 
-                  id="clubName" 
-                  name="name"
-                  value={clubForm.name}
-                  onChange={handleInputChange}
-                  placeholder="Nome do seu clube"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="logo">Logo do Clube</Label>
-                <div className="flex items-end gap-4">
-                  {logoPreview && (
-                    <div className="w-16 h-16 rounded-md overflow-hidden border border-gray-200">
-                      <img 
-                        src={logoPreview} 
-                        alt="Logo preview" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <Input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleLogoChange}
-                    />
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Enviando...
-                        </>
-                      ) : (
-                        <>
-                          <ImageIcon className="mr-2 h-4 w-4" />
-                          {logoPreview ? "Alterar Logo" : "Upload Logo"}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
+    <div className="space-y-6">
+      {/* Configurações Gerais */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Configurações Gerais
+          </CardTitle>
+          <CardDescription>
+            Informações básicas e arquivos do clube
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!canEdit && (
+            <div className="flex items-center gap-2 p-4 bg-yellow-50 text-yellow-800 rounded-md mb-4">
+              <ShieldAlert className="h-5 w-5" />
+              <p>Você está no modo visualização. Apenas administradores podem editar as configurações.</p>
             </div>
-          </CardContent>
-        </Card>
-        
-        {/* Club Statute Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-futconnect-600" />
-              Estatuto do Clube
-            </CardTitle>
-            <CardDescription>
-              Defina o estatuto oficial do seu clube.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="statute">Arquivo do Estatuto (PDF)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  ref={statuteInputRef}
-                  className="hidden"
-                  accept=".pdf"
-                  onChange={handleStatuteFileChange}
+          )}
+          
+          <div className="space-y-2">
+            <Label htmlFor="description">Descrição do Clube</Label>
+            <Textarea
+              id="description"
+              name="description"
+              value={clubForm.description}
+              onChange={handleInputChange}
+              placeholder="Digite uma descrição para o clube..."
+              className="resize-none"
+              rows={4}
+              disabled={!canEdit}
+            />
+          </div>
+
+          {/* Logo do Clube */}
+          <div className="space-y-2">
+            <Label>Logo do Clube</Label>
+            <div className="flex items-center gap-4">
+              {logoPreview && (
+                <img
+                  src={logoPreview}
+                  alt="Logo do clube"
+                  className="h-20 w-20 object-cover rounded-md"
                 />
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => statuteInputRef.current?.click()}
-                  className="flex-1"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Enviando...
-                    </>
-                  ) : (
-                    <>
-                      <FileUp className="mr-2 h-4 w-4" />
-                      {statuteFile ? statuteFile.name : clubForm.statuteUrl ? "Alterar Estatuto" : "Upload Estatuto (PDF)"}
-                    </>
-                  )}
-                </Button>
-                {(statuteFile || clubForm.statuteUrl) && (
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    onClick={() => {
-                      setStatuteFile(null);
-                      setClubForm(prev => ({ ...prev, statuteUrl: "" }));
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                    disabled={isLoading}
-                  >
-                    Remover
-                  </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!canEdit || isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    Alterar Logo
+                  </>
                 )}
-              </div>
-              <p className="text-sm text-gray-500">
-                Carregue o estatuto do seu clube em formato PDF (máx. 10MB).
-              </p>
-              {clubForm.statuteUrl && (
-                <div className="mt-2">
-                  <a 
-                    href={clubForm.statuteUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-futconnect-600 hover:text-futconnect-700 flex items-center"
-                  >
-                    <FileText className="mr-1 h-4 w-4" />
-                    Visualizar estatuto
-                  </a>
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleFileSelect(e, 'logo')}
+                disabled={!canEdit}
+              />
+            </div>
+          </div>
+
+          {/* Estatuto do Clube */}
+          <div className="space-y-2">
+            <Label>Estatuto do Clube</Label>
+            <div className="flex items-center gap-4">
+              {statuteFile && (
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  <span className="text-sm">{statuteFile.name}</span>
                 </div>
               )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => statuteInputRef.current?.click()}
+                disabled={!canEdit || isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <FileUp className="h-4 w-4 mr-2" />
+                    {clubForm.statuteUrl ? 'Alterar Estatuto' : 'Upload do Estatuto'}
+                  </>
+                )}
+              </Button>
+              <input
+                ref={statuteInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx"
+                className="hidden"
+                onChange={(e) => handleFileSelect(e, 'statute')}
+                disabled={!canEdit}
+              />
             </div>
-          </CardContent>
-        </Card>
-        
-        {/* Club Anthem Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Music className="h-5 w-5 text-futconnect-600" />
-              Hino do Clube
-            </CardTitle>
-            <CardDescription>
-              Configure o hino oficial do seu clube.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="anthem">Arquivo do Hino (PDF)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  ref={anthemInputRef}
-                  className="hidden"
-                  accept=".pdf"
-                  onChange={handleAnthemFileChange}
-                />
-                <Button 
-                  type="button" 
+          </div>
+
+          {/* Hino do Clube */}
+          <div className="space-y-2">
+            <Label>Hino do Clube</Label>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                {anthemFile && (
+                  <div className="flex items-center gap-2">
+                    <Music className="h-5 w-5" />
+                    <span className="text-sm">{anthemFile.name}</span>
+                  </div>
+                )}
+                <Button
+                  type="button"
                   variant="outline"
                   onClick={() => anthemInputRef.current?.click()}
-                  className="flex-1"
-                  disabled={isLoading}
+                  disabled={!canEdit || isLoading}
                 >
                   {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Enviando...
-                    </>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
-                      <FileUp className="mr-2 h-4 w-4" />
-                      {anthemFile ? anthemFile.name : clubForm.anthemUrl ? "Alterar Hino" : "Upload Hino (PDF)"}
+                      <FileUp className="h-4 w-4 mr-2" />
+                      {clubForm.anthemUrl ? 'Alterar Hino' : 'Upload do Hino'}
                     </>
                   )}
                 </Button>
-                {(anthemFile || clubForm.anthemUrl) && (
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    onClick={() => {
-                      setAnthemFile(null);
-                      setClubForm(prev => ({ ...prev, anthemUrl: "" }));
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                    disabled={isLoading}
-                  >
-                    Remover
-                  </Button>
-                )}
+                <input
+                  ref={anthemInputRef}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e, 'anthem')}
+                  disabled={!canEdit}
+                />
               </div>
-              <p className="text-sm text-gray-500">
-                Carregue a letra do hino do seu clube em formato PDF (máx. 5MB).
-              </p>
-              {clubForm.anthemUrl && (
-                <div className="mt-2">
-                  <a 
-                    href={clubForm.anthemUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-futconnect-600 hover:text-futconnect-700 flex items-center"
-                  >
-                    <FileText className="mr-1 h-4 w-4" />
-                    Visualizar hino
-                  </a>
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="anthemLinkUrl">Link para o Hino (YouTube, SoundCloud, etc.)</Label>
-              <div className="flex gap-2">
-                <Input 
-                  id="anthemLinkUrl" 
+              <div className="flex items-center gap-2">
+                <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                <Input
                   name="anthemLinkUrl"
                   value={clubForm.anthemLinkUrl}
                   onChange={handleInputChange}
-                  placeholder="https://"
-                  type="url"
+                  placeholder="Ou cole um link do YouTube/SoundCloud..."
+                  disabled={!canEdit}
                 />
-                {clubForm.anthemLinkUrl && (
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => window.open(clubForm.anthemLinkUrl, '_blank')}
-                  >
-                    <LinkIcon className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
             </div>
-          </CardContent>
-        </Card>
-        
-        {/* Club Invitation Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-futconnect-600" />
-              Convite para Sócios
-            </CardTitle>
-            <CardDescription>
-              Configure o modelo de convite para novos sócios do seu clube.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="invitationFile">Arquivo de Convite (PDF ou Imagem)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  ref={invitationInputRef}
-                  className="hidden"
-                  accept=".pdf,image/*"
-                  onChange={handleInvitationFileChange}
-                />
-                <Button 
-                  type="button" 
+          </div>
+
+          {/* Convite do Clube */}
+          <div className="space-y-2">
+            <Label>Convite do Clube</Label>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                {invitationFile && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    <span className="text-sm">{invitationFile.name}</span>
+                  </div>
+                )}
+                <Button
+                  type="button"
                   variant="outline"
                   onClick={() => invitationInputRef.current?.click()}
-                  className="flex-1"
-                  disabled={isLoading}
+                  disabled={!canEdit || isLoading}
                 >
                   {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Enviando...
-                    </>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
-                      <FileUp className="mr-2 h-4 w-4" />
-                      {invitationFile ? invitationFile.name : clubForm.invitationUrl ? "Alterar Convite" : "Upload Convite"}
+                      <FileUp className="h-4 w-4 mr-2" />
+                      {clubForm.invitationUrl ? 'Alterar Convite' : 'Upload do Convite'}
                     </>
                   )}
                 </Button>
-                {(invitationFile || clubForm.invitationUrl) && (
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    onClick={() => {
-                      setInvitationFile(null);
-                      setClubForm(prev => ({ ...prev, invitationUrl: "" }));
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                    disabled={isLoading}
-                  >
-                    Remover
-                  </Button>
-                )}
+                <input
+                  ref={invitationInputRef}
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="hidden"
+                  onChange={(e) => handleFileSelect(e, 'invitation')}
+                  disabled={!canEdit}
+                />
               </div>
-              {clubForm.invitationUrl && (
-                <div className="mt-2">
-                  <a 
-                    href={clubForm.invitationUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-futconnect-600 hover:text-futconnect-700 flex items-center"
-                  >
-                    <FileText className="mr-1 h-4 w-4" />
-                    Visualizar convite
-                  </a>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  name="invitationLinkUrl"
+                  value={clubForm.invitationLinkUrl}
+                  onChange={handleInputChange}
+                  placeholder="Ou cole um link para o convite..."
+                  disabled={!canEdit}
+                />
+              </div>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="invitationLinkUrl">Link para Convite Online</Label>
-              <Input 
-                id="invitationLinkUrl" 
-                name="invitationLinkUrl"
-                value={clubForm.invitationLinkUrl}
-                onChange={handleInputChange}
-                placeholder="https://"
-                type="url"
-              />
-              <p className="text-sm text-gray-500">
-                Se você tem um convite online (por exemplo, no Canva ou Google Docs), compartilhe o link aqui.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Team Configuration Settings */}
-        <TeamConfigurationSettings />
-        
-        {/* Club Administrators Section */}
-        <ClubAdminSettings />
-        
-        <div className="flex justify-end">
-          <Button 
-            type="submit" 
-            className="bg-futconnect-600 hover:bg-futconnect-700"
-            disabled={isLoading}
+          </div>
+
+          <Button
+            onClick={handleSubmit}
+            disabled={!canEdit || isLoading}
+            className="w-full"
           >
             {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Salvando...
-              </>
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              "Salvar Configurações do Clube"
+              'Salvar Configurações'
             )}
           </Button>
-        </div>
-      </div>
-    </form>
+        </CardContent>
+      </Card>
+
+      {/* Configurações de Times */}
+      <TeamConfigurationSettings />
+
+      {/* Configurações de Administradores */}
+      <ClubAdminSettings />
+    </div>
   );
 };

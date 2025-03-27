@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -25,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { fetchMonthlyFeeSettings, fetchActiveContributingMembers } from '@/utils/monthlyFees';
 import { MonthlyFeeSetting } from '@/types/monthlyFee';
 import { 
@@ -59,6 +59,26 @@ export function MonthlyFeeGenerationModal({
   const [membersLoading, setMembersLoading] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isClubAdmin } = useAuthorization();
+
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const hasPermission = await isClubAdmin(user.activeClub.id);
+        if (!hasPermission) {
+          toast({
+            variant: "destructive",
+            title: "Acesso negado",
+            description: "Você não tem permissão para gerar mensalidades.",
+          });
+          onClose();
+        }
+      }
+    };
+    if (isOpen) {
+      checkPermissions();
+    }
+  }, [isOpen, user?.activeClub?.id, isClubAdmin, onClose, toast]);
 
   // Fetch settings when modal opens
   useEffect(() => {

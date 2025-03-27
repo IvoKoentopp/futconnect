@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { fetchMonthlyFees, deleteMonthlyFee, fetchMonthlyFeeSettings, updateMonthlyFeePayment, cancelMonthlyFee, generateMonthlyFees, updateMonthlyFee } from '@/utils/monthlyFees';
 import { MonthlyFee, MonthlyFeeSetting, MonthlyFeePaymentMethod, MonthlyFeeStatus } from '@/types/monthlyFee';
 import { MonthlyFeeGenerationModal } from '@/components/MonthlyFeeGenerationModal';
@@ -107,50 +108,145 @@ const MonthlyFees = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const { user } = useAuth();
+  const { isClubAdmin } = useAuthorization();
   const { toast } = useToast();
-  
+  const [canEdit, setCanEdit] = useState(false);
   const [monthlyFees, setMonthlyFees] = useState<MonthlyFee[]>([]);
-  const [feeSettings, setFeeSettings] = useState<MonthlyFeeSetting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
   const [isGenerationModalOpen, setIsGenerationModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedFee, setSelectedFee] = useState<MonthlyFee | null>(null);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  
-  const [feeToDelete, setFeeToDelete] = useState<MonthlyFee | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  
-  // Carregar mensalidades e configurações
+  const [deleteFeeId, setDeleteFeeId] = useState<string | null>(null);
+
   useEffect(() => {
-    const loadData = async () => {
-      if (!user?.activeClub?.id) return;
-      
-      setIsLoading(true);
-      try {
-        const fees = await fetchMonthlyFees(user.activeClub.id);
-        const settings = await fetchMonthlyFeeSettings(user.activeClub.id);
-        
-        setMonthlyFees(fees);
-        setFeeSettings(settings);
-      } catch (error) {
-        console.error("Erro ao carregar dados:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Erro ao carregar dados das mensalidades",
-        });
-      } finally {
-        setIsLoading(false);
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const isAdmin = await isClubAdmin(user.activeClub.id);
+        setCanEdit(isAdmin);
       }
     };
+    checkPermissions();
+  }, [user?.activeClub?.id, isClubAdmin]);
+
+  const handleDelete = async (id: string) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Você não tem permissão para excluir mensalidades.",
+      });
+      return;
+    }
     
-    loadData();
-  }, [user?.activeClub?.id, toast]);
-  
-  // Filtrar mensalidades com base na pesquisa e na aba ativa
+    setDeleteFeeId(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteFeeId || !canEdit) return;
+    
+    const success = await deleteMonthlyFee(deleteFeeId);
+    
+    if (success) {
+      toast({
+        title: "Mensalidade excluída",
+        description: "A mensalidade foi removida com sucesso.",
+      });
+      loadMonthlyFees();
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir a mensalidade.",
+      });
+    }
+    
+    setIsDeleteDialogOpen(false);
+    setDeleteFeeId(null);
+  };
+
+  const handlePayment = async (fee: MonthlyFee) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Você não tem permissão para registrar pagamentos.",
+      });
+      return;
+    }
+    
+    setSelectedFee(fee);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleEdit = async (fee: MonthlyFee) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Você não tem permissão para editar mensalidades.",
+      });
+      return;
+    }
+    
+    setSelectedFee(fee);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCancel = async (fee: MonthlyFee) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Você não tem permissão para cancelar mensalidades.",
+      });
+      return;
+    }
+    
+    const success = await cancelMonthlyFee(fee.id);
+    
+    if (success) {
+      toast({
+        title: "Mensalidade cancelada",
+        description: "A mensalidade foi cancelada com sucesso.",
+      });
+      loadMonthlyFees();
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erro ao cancelar",
+        description: "Não foi possível cancelar a mensalidade.",
+      });
+    }
+  };
+
+  const loadMonthlyFees = async () => {
+    if (!user?.activeClub?.id) return;
+    
+    setIsLoading(true);
+    try {
+      const fees = await fetchMonthlyFees(user.activeClub.id);
+      setMonthlyFees(fees);
+    } catch (error) {
+      console.error("Erro ao carregar mensalidades:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Erro ao carregar mensalidades",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMonthlyFees();
+  }, [user?.activeClub?.id]);
+
   const filteredFees = monthlyFees.filter(fee => {
     const matchesSearch = 
       (fee.memberName?.toLowerCase().includes(searchQuery.toLowerCase()) || false) || 
@@ -164,8 +260,7 @@ const MonthlyFees = () => {
     
     return matchesSearch;
   });
-  
-  // Calcular totais
+
   const totalPending = monthlyFees
     .filter(fee => fee.status === 'pending' || fee.status === 'late')
     .reduce((sum, fee) => sum + fee.amount, 0);
@@ -174,235 +269,51 @@ const MonthlyFees = () => {
     .filter(fee => fee.status === 'paid' || fee.status === 'paid_late')
     .reduce((sum, fee) => sum + fee.amount, 0);
     
-  // Count of late fees only (for delinquency rate)
   const lateFees = monthlyFees.filter(fee => fee.status === 'late');
   const totalFees = monthlyFees.filter(fee => fee.status !== 'cancelled');
   
-  // Calculate delinquency rate using only late fees
   const delinquencyRate = totalFees.length > 0 
     ? Math.round((lateFees.length / totalFees.length) * 100)
     : 0;
-  
-  // Handler para abrir o modal de pagamento
-  const handlePaymentClick = (fee: MonthlyFee) => {
-    setSelectedFee(fee);
-    setIsPaymentModalOpen(true);
-  };
-  
-  // Handler to open the edit modal
-  const handleEditClick = (fee: MonthlyFee) => {
-    setSelectedFee(fee);
-    setIsEditModalOpen(true);
-  };
-  
-  // Função para recarregar dados após mudanças
-  const refreshData = async () => {
-    if (!user?.activeClub?.id) return;
-    
-    try {
-      const fees = await fetchMonthlyFees(user.activeClub.id);
-      setMonthlyFees(fees);
-    } catch (error) {
-      console.error("Erro ao recarregar dados:", error);
-    }
-  };
 
-  // Handler for deleting a fee
-  const handleDeleteFee = async () => {
-    if (!feeToDelete) return;
-    
-    try {
-      const success = await deleteMonthlyFee(feeToDelete.id);
-      
-      if (success) {
-        toast({
-          title: "Mensalidade excluída",
-          description: "A mensalidade foi excluída com sucesso.",
-        });
-        await refreshData();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível excluir a mensalidade. Se estiver paga e associada a uma transação, a exclusão não é permitida.",
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao excluir mensalidade:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Ocorreu um erro ao excluir a mensalidade.",
-      });
-    } finally {
-      setFeeToDelete(null);
-      setIsDeleteDialogOpen(false);
-    }
-  };
-
-  // Open delete confirmation dialog
-  const openDeleteDialog = (fee: MonthlyFee) => {
-    setFeeToDelete(fee);
-    setIsDeleteDialogOpen(true);
-  };
-
-  // Handler para registrar pagamento
-  const handleRecordPayment = async (
-    feeId: string, 
-    paymentDate: string, 
-    paymentMethod: MonthlyFeePaymentMethod, 
-    bankAccountId: string
-  ) => {
-    try {
-      const success = await updateMonthlyFeePayment(feeId, paymentDate, paymentMethod, bankAccountId);
-      
-      if (success) {
-        toast({
-          title: "Pagamento registrado",
-          description: "O pagamento foi registrado com sucesso.",
-        });
-        await refreshData();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível registrar o pagamento.",
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao registrar pagamento:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Ocorreu um erro ao registrar o pagamento.",
-      });
-    }
-  };
-
-  // Handler para cancelar mensalidade
-  const handleCancelFee = async (feeId: string) => {
-    try {
-      const success = await cancelMonthlyFee(feeId);
-      
-      if (success) {
-        toast({
-          title: "Mensalidade cancelada",
-          description: "A mensalidade foi cancelada com sucesso.",
-        });
-        await refreshData();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível cancelar a mensalidade.",
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao cancelar mensalidade:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Ocorreu um erro ao cancelar a mensalidade.",
-      });
-    }
-  };
-
-  // Handler for updating a monthly fee
-  const handleUpdateFee = async (updatedFee: MonthlyFee) => {
-    try {
-      const success = await updateMonthlyFee(updatedFee);
-      
-      if (success) {
-        toast({
-          title: "Mensalidade atualizada",
-          description: "Os dados da mensalidade foram atualizados com sucesso.",
-        });
-        await refreshData();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível atualizar a mensalidade.",
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao atualizar mensalidade:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Ocorreu um erro ao atualizar a mensalidade.",
-      });
-    }
-  };
-
-  // Handler para gerar mensalidades
-  const handleGenerateFees = async (referenceMonth: Date, selectedMembers?: string[]) => {
-    if (!user?.activeClub?.id) return false;
-    
-    try {
-      const result = await generateMonthlyFees(user.activeClub.id, referenceMonth, selectedMembers);
-      
-      if (result.success) {
-        toast({
-          title: "Mensalidades geradas",
-          description: `${result.count} mensalidades foram geradas com sucesso para sócios Contribuinte e Ativo.`,
-        });
-        await refreshData();
-        return true;
-      } else {
-        // Throw the error for the modal to catch
-        throw new Error(result.error || "Não foi possível gerar as mensalidades.");
-      }
-    } catch (error: any) {
-      console.error("Erro ao gerar mensalidades:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message || "Ocorreu um erro ao gerar as mensalidades.",
-      });
-      
-      // Re-throw the error to be caught by the modal
-      throw error;
-    }
-  };
-
-  // Handler to open settings modal
-  const handleOpenSettings = () => {
-    setIsSettingsModalOpen(true);
-  };
-
-  // Handler for after settings are saved
-  const handleSettingsSaved = async () => {
-    await refreshData();
-    
-    // Also refresh fee settings
-    if (user?.activeClub?.id) {
-      try {
-        const settings = await fetchMonthlyFeeSettings(user.activeClub.id);
-        setFeeSettings(settings);
-      } catch (error) {
-        console.error("Erro ao carregar configurações:", error);
-      }
-    }
-  };
-
-  // Handler to open report modal
-  const handleOpenReportModal = () => {
-    setIsReportModalOpen(true);
-  };
-  
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mensalidades</h1>
           <p className="text-gray-500">
-            Gerenciamento de mensalidades do {user?.activeClub?.name}
+            Gerencie as mensalidades do {user?.activeClub?.name}
           </p>
         </div>
+        <div className="flex space-x-2">
+          {canEdit && (
+            <>
+              <Button
+                onClick={() => setIsGenerationModalOpen(true)}
+                className="bg-futconnect-600 hover:bg-futconnect-700"
+              >
+                <Receipt className="mr-2 h-4 w-4" />
+                Gerar Mensalidades
+              </Button>
+              <Button
+                onClick={() => setIsSettingsModalOpen(true)}
+                variant="outline"
+              >
+                <Banknote className="mr-2 h-4 w-4" />
+                Configurações
+              </Button>
+            </>
+          )}
+          <Button
+            onClick={() => setIsReportModalOpen(true)}
+            variant="outline"
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Relatório
+          </Button>
+        </div>
       </div>
-      
-      {/* Dashboard Cards */}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
           <CardHeader className="pb-2">
@@ -448,7 +359,7 @@ const MonthlyFees = () => {
           </CardContent>
         </Card>
       </div>
-      
+
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -461,12 +372,6 @@ const MonthlyFees = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" className="h-10" onClick={handleOpenReportModal}>
-                <FileText className="mr-2 h-4 w-4" />
-                Relatório
-              </Button>
             </div>
           </div>
         </CardHeader>
@@ -581,7 +486,7 @@ const MonthlyFees = () => {
                                   <Button 
                                     variant="ghost" 
                                     size="icon"
-                                    onClick={() => handlePaymentClick(fee)}
+                                    onClick={() => handlePayment(fee)}
                                     title="Registrar Pagamento"
                                     className="text-green-500 hover:text-green-700 hover:bg-green-50"
                                   >
@@ -592,7 +497,7 @@ const MonthlyFees = () => {
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
-                                  onClick={() => handleEditClick(fee)}
+                                  onClick={() => handleEdit(fee)}
                                   title="Editar mensalidade"
                                   className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                                 >
@@ -602,7 +507,7 @@ const MonthlyFees = () => {
                                 <Button 
                                   variant="ghost" 
                                   size="icon"
-                                  onClick={() => openDeleteDialog(fee)}
+                                  onClick={() => handleDelete(fee.id)}
                                   disabled={fee.status === 'paid' && fee.transactionId ? true : false}
                                   title={fee.status === 'paid' && fee.transactionId ? 
                                     "Não é possível excluir mensalidades pagas com transação associada" : 
@@ -630,62 +535,95 @@ const MonthlyFees = () => {
           </Tabs>
         </CardContent>
       </Card>
-      
-      {/* Delete Confirmation Dialog */}
+
+      {/* Actions */}
+      {canEdit && (
+        <>
+          <MonthlyFeeGenerationModal
+            isOpen={isGenerationModalOpen}
+            onClose={() => setIsGenerationModalOpen(false)}
+            onGenerate={async (referenceMonth: Date) => {
+              if (!user?.activeClub?.id) return false;
+              try {
+                const result = await generateMonthlyFees(user.activeClub.id, referenceMonth);
+                if (result.success) {
+                  await loadMonthlyFees();
+                  return true;
+                }
+                return false;
+              } catch (error) {
+                console.error('Error generating fees:', error);
+                return false;
+              }
+            }}
+            onOpenSettings={() => setIsSettingsModalOpen(true)}
+          />
+
+          <MonthlyFeePaymentModal
+            isOpen={isPaymentModalOpen}
+            onClose={() => {
+              setIsPaymentModalOpen(false);
+              setSelectedFee(null);
+            }}
+            fee={selectedFee}
+            onRecordPayment={async (feeId: string, paymentDate: string, paymentMethod: MonthlyFeePaymentMethod, bankAccountId: string) => {
+              const success = await updateMonthlyFeePayment(feeId, paymentDate, paymentMethod, bankAccountId);
+              if (success) {
+                await loadMonthlyFees();
+              }
+              return success;
+            }}
+          />
+
+          <MonthlyFeeEditModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setSelectedFee(null);
+            }}
+            fee={selectedFee}
+            onSave={async (updatedFee: MonthlyFee) => {
+              const success = await updateMonthlyFee(updatedFee);
+              if (success) {
+                await loadMonthlyFees();
+              }
+              return success;
+            }}
+          />
+
+          <MonthlyFeeSettingsModal
+            isOpen={isSettingsModalOpen}
+            onClose={() => setIsSettingsModalOpen(false)}
+            onSave={async () => {
+              await loadMonthlyFees();
+            }}
+          />
+        </>
+      )}
+
+      <MonthlyFeeReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        monthlyFees={monthlyFees}
+        clubName={user?.activeClub?.name || ''}
+      />
+
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Mensalidade</AlertDialogTitle>
             <AlertDialogDescription>
-              Você está prestes a excluir a mensalidade de {feeToDelete?.memberName} referente a {feeToDelete ? formatMonth(feeToDelete.referenceMonth) : ''}.
-              <br />
-              <br />
-              Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir esta mensalidade? Esta ação não poderá ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteFee} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
-      {/* Modais */}
-      <MonthlyFeeGenerationModal
-        isOpen={isGenerationModalOpen}
-        onClose={() => setIsGenerationModalOpen(false)}
-        onGenerate={handleGenerateFees}
-        onOpenSettings={handleOpenSettings}
-      />
-      
-      <MonthlyFeePaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        fee={selectedFee}
-        onRecordPayment={handleRecordPayment}
-      />
-      
-      <MonthlyFeeEditModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        fee={selectedFee}
-        onSave={handleUpdateFee}
-      />
-      
-      <MonthlyFeeSettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        onSave={handleSettingsSaved}
-      />
-
-      <MonthlyFeeReportModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        monthlyFees={filteredFees}
-        clubName={user?.activeClub?.name || ''}
-      />
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
@@ -6,19 +5,23 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogClose
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { MonthlyFee } from '@/types/monthlyFee';
 import { DateInput } from '@/components/ui/date-input';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 
 interface MonthlyFeeEditModalProps {
   isOpen: boolean;
   onClose: () => void;
   fee: MonthlyFee | null;
-  onSave: (updatedFee: MonthlyFee) => void;
+  onSave: (updatedFee: MonthlyFee) => Promise<boolean>;
 }
 
 export function MonthlyFeeEditModal({ 
@@ -29,8 +32,30 @@ export function MonthlyFeeEditModal({
 }: MonthlyFeeEditModalProps) {
   const [amount, setAmount] = useState<number>(0);
   const [dueDate, setDueDate] = useState<Date | undefined>(new Date());
-  
-  // Reset form and populate with fee data when modal is opened
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { isClubAdmin } = useAuthorization();
+
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const hasPermission = await isClubAdmin(user.activeClub.id);
+        if (!hasPermission) {
+          toast({
+            variant: "destructive",
+            title: "Acesso negado",
+            description: "Você não tem permissão para editar mensalidades.",
+          });
+          onClose();
+        }
+      }
+    };
+    if (isOpen) {
+      checkPermissions();
+    }
+  }, [isOpen, user?.activeClub?.id, isClubAdmin, onClose, toast]);
+
   useEffect(() => {
     if (isOpen && fee) {
       setAmount(fee.amount);
@@ -47,8 +72,11 @@ export function MonthlyFeeEditModal({
     }
   }, [isOpen, fee]);
 
-  const handleSave = () => {
-    if (fee && dueDate) {
+  const handleSubmit = async () => {
+    if (!fee || !dueDate) return;
+    
+    setIsSubmitting(true);
+    try {
       // Format the date as YYYY-MM-DDT00:00:00.000Z
       const year = dueDate.getUTCFullYear();
       const month = String(dueDate.getUTCMonth() + 1).padStart(2, '0');
@@ -60,8 +88,31 @@ export function MonthlyFeeEditModal({
         amount,
         dueDate: dateString
       };
-      onSave(updatedFee);
-      onClose();
+      
+      const success = await onSave(updatedFee);
+      
+      if (success) {
+        toast({
+          title: "Mensalidade atualizada",
+          description: "A mensalidade foi atualizada com sucesso.",
+        });
+        onClose();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro ao atualizar",
+          description: "Tente novamente mais tarde.",
+        });
+      }
+    } catch (error) {
+      console.error('Error updating monthly fee:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar",
+        description: "Tente novamente mais tarde.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -116,13 +167,15 @@ export function MonthlyFeeEditModal({
         </div>
         
         <DialogFooter className="flex space-x-2 justify-end">
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <DialogClose asChild>
+            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          </DialogClose>
           <Button 
             variant="confirm"
-            onClick={handleSave}
-            disabled={!dueDate || amount <= 0}
+            onClick={handleSubmit}
+            disabled={isSubmitting || !dueDate || amount <= 0}
           >
-            Salvar Alterações
+            {isSubmitting ? "Salvando..." : "Salvar Alterações"}
           </Button>
         </DialogFooter>
       </DialogContent>

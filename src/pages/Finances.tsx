@@ -16,6 +16,7 @@ import {
   WalletCards
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { ChartOfAccountsModal } from '@/components/ChartOfAccountsModal';
 import { BankAccountModal } from '@/components/BankAccountModal';
 import { TransactionModal } from '@/components/TransactionModal';
@@ -75,7 +76,9 @@ const Finances = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const { user } = useAuth();
+  const { isClubAdmin } = useAuthorization();
   const { toast } = useToast();
+  const [canEdit, setCanEdit] = useState(false);
   const [isChartOfAccountsOpen, setIsChartOfAccountsOpen] = useState(false);
   const [isBankAccountModalOpen, setIsBankAccountModalOpen] = useState(false);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
@@ -226,43 +229,61 @@ const Finances = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Você não tem permissão para excluir transações.",
+      });
+      return;
+    }
+    
     setDeleteTransactionId(id);
     setIsDeleteDialogOpen(true);
   };
   
   const confirmDelete = async () => {
-    if (!deleteTransactionId) return;
+    if (!deleteTransactionId || !user?.activeClub?.id || !canEdit) return;
     
     try {
       const { error } = await supabase
         .from('transactions')
         .delete()
-        .eq('id', deleteTransactionId);
+        .eq('id', deleteTransactionId)
+        .eq('club_id', user.activeClub.id);
       
       if (error) throw error;
       
       toast({
         title: "Transação excluída com sucesso",
-        description: "A transação foi excluída permanentemente.",
+        description: "A transação foi removida.",
       });
       
       fetchTransactions();
-      fetchBankAccounts();
     } catch (error) {
       console.error('Error deleting transaction:', error);
       toast({
         variant: "destructive",
         title: "Erro ao excluir transação",
-        description: "Verifique sua conexão e tente novamente.",
+        description: "Tente novamente mais tarde.",
       });
     } finally {
       setIsDeleteDialogOpen(false);
       setDeleteTransactionId(null);
     }
   };
-  
-  // Modificada para mostrar a data exatamente como no banco, sem ajustes de timezone
+
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const isAdmin = await isClubAdmin(user.activeClub.id);
+        setCanEdit(isAdmin);
+      }
+    };
+    checkPermissions();
+  }, [user?.activeClub?.id, isClubAdmin]);
+
   const formatDate = (dateString: string) => {
     // Parse a data diretamente da string no formato YYYY-MM-DD
     const [fullDate] = dateString.split('T');
@@ -308,21 +329,29 @@ const Finances = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Finanças</h1>
           <p className="text-gray-500">
             Gerencie as finanças do {user?.activeClub?.name}
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            className="bg-white"
-            onClick={() => setIsReportDialogOpen(true)}
-          >
-            <Calendar className="mr-2 h-4 w-4" />
-            Relatórios
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex space-x-2">
+            <Button
+              onClick={() => setIsTransactionModalOpen(true)}
+              className="bg-futconnect-600 hover:bg-futconnect-700"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nova Transação
+            </Button>
+            <Button
+              onClick={() => setIsChartOfAccountsOpen(true)}
+              className="bg-futconnect-600 hover:bg-futconnect-700"
+            >
+              <WalletCards className="mr-2 h-4 w-4" />
+              Plano de Contas
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Consolidated Account Balance Card */}
@@ -393,10 +422,12 @@ const Finances = () => {
                 <p className="text-sm text-gray-500 text-center mb-3">
                   Você ainda não tem contas bancárias cadastradas.
                 </p>
-                <Button size="sm" onClick={() => setIsBankAccountModalOpen(true)}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Cadastrar Conta
-                </Button>
+                {canEdit && (
+                  <Button size="sm" onClick={() => setIsBankAccountModalOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Cadastrar Conta
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -455,13 +486,15 @@ const Finances = () => {
               />
             </div>
             <div className="flex items-center gap-2">
-              <Button 
-                className="bg-futconnect-600 hover:bg-futconnect-700"
-                onClick={() => setIsTransactionModalOpen(true)}
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Nova Transação
-              </Button>
+              {canEdit && (
+                <Button 
+                  className="bg-futconnect-600 hover:bg-futconnect-700"
+                  onClick={() => setIsTransactionModalOpen(true)}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Nova Transação
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -547,22 +580,26 @@ const Finances = () => {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
                               <div className="flex justify-center space-x-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-futconnect-600 hover:text-futconnect-800"
-                                  onClick={() => handleEdit(transaction.id)}
-                                >
-                                  <PenLine className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-red-600 hover:text-red-800"
-                                  onClick={() => handleDelete(transaction.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {canEdit && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-futconnect-600 hover:text-futconnect-800"
+                                    onClick={() => handleEdit(transaction.id)}
+                                  >
+                                    <PenLine className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {canEdit && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-red-600 hover:text-red-800"
+                                    onClick={() => handleDelete(transaction.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -578,7 +615,7 @@ const Finances = () => {
                                   "Tente ajustar os seus filtros de busca." : 
                                   "Comece adicionando sua primeira transação."}
                               </p>
-                              {!searchQuery && (
+                              {!searchQuery && canEdit && (
                                 <Button 
                                   onClick={() => {
                                     setSelectedTransaction(null);
@@ -657,22 +694,26 @@ const Finances = () => {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
                               <div className="flex justify-center space-x-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-futconnect-600 hover:text-futconnect-800"
-                                  onClick={() => handleEdit(transaction.id)}
-                                >
-                                  <PenLine className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-red-600 hover:text-red-800"
-                                  onClick={() => handleDelete(transaction.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {canEdit && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-futconnect-600 hover:text-futconnect-800"
+                                    onClick={() => handleEdit(transaction.id)}
+                                  >
+                                    <PenLine className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {canEdit && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-red-600 hover:text-red-800"
+                                    onClick={() => handleDelete(transaction.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -747,22 +788,26 @@ const Finances = () => {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-center text-sm font-medium">
                               <div className="flex justify-center space-x-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-futconnect-600 hover:text-futconnect-800"
-                                  onClick={() => handleEdit(transaction.id)}
-                                >
-                                  <PenLine className="h-4 w-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="text-red-600 hover:text-red-800"
-                                  onClick={() => handleDelete(transaction.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {canEdit && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-futconnect-600 hover:text-futconnect-800"
+                                    onClick={() => handleEdit(transaction.id)}
+                                  >
+                                    <PenLine className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {canEdit && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-red-600 hover:text-red-800"
+                                    onClick={() => handleDelete(transaction.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -783,33 +828,41 @@ const Finances = () => {
         </CardContent>
       </Card>
       
-      <TransactionModal 
-        isOpen={isTransactionModalOpen} 
-        onClose={handleCloseModal} 
-        onTransactionCreated={() => {
-          fetchTransactions();
-          fetchBankAccounts();
-        }}
-        transactionToEdit={selectedTransaction}
-      />
+      {canEdit && (
+        <TransactionModal 
+          isOpen={isTransactionModalOpen} 
+          onClose={handleCloseModal} 
+          onTransactionCreated={() => {
+            fetchTransactions();
+            fetchBankAccounts();
+          }}
+          transactionToEdit={selectedTransaction}
+        />
+      )}
       
-      <MonthlyFeeGenerationModal
-        isOpen={isMonthlyFeeModalOpen}
-        onClose={() => setIsMonthlyFeeModalOpen(false)}
-        onGenerate={handleGenerateMonthlyFees}
-        onOpenSettings={() => setIsMonthlyFeeSettingsOpen(true)}
-      />
+      {canEdit && (
+        <MonthlyFeeGenerationModal
+          isOpen={isMonthlyFeeModalOpen}
+          onClose={() => setIsMonthlyFeeModalOpen(false)}
+          onGenerate={handleGenerateMonthlyFees}
+          onOpenSettings={() => setIsMonthlyFeeSettingsOpen(true)}
+        />
+      )}
       
-      <BankAccountModal 
-        isOpen={isBankAccountModalOpen} 
-        onClose={() => setIsBankAccountModalOpen(false)}
-        onAccountCreated={() => fetchBankAccounts()}
-      />
+      {canEdit && (
+        <BankAccountModal 
+          isOpen={isBankAccountModalOpen} 
+          onClose={() => setIsBankAccountModalOpen(false)}
+          onAccountCreated={() => fetchBankAccounts()}
+        />
+      )}
       
-      <ChartOfAccountsModal 
-        isOpen={isChartOfAccountsOpen} 
-        onClose={() => setIsChartOfAccountsOpen(false)}
-      />
+      {canEdit && (
+        <ChartOfAccountsModal 
+          isOpen={isChartOfAccountsOpen} 
+          onClose={() => setIsChartOfAccountsOpen(false)}
+        />
+      )}
       
       <FinancialReportDialog
         isOpen={isReportDialogOpen}
@@ -822,7 +875,7 @@ const Finances = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir Transação</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta transação? Esta ação não pode ser desfeita.
+              Tem certeza que deseja excluir esta transação? Esta ação não poderá ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

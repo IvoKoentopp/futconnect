@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +24,7 @@ import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { Wallet } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { supabase } from '@/integrations/supabase/client';
 import { BankAccount } from '@/types/transaction';
 
@@ -70,6 +70,7 @@ export function BankAccountModal({
 }: BankAccountModalProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isClubAdmin } = useAuthorization();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<BankAccountFormInput>({
@@ -80,6 +81,25 @@ export function BankAccountModal({
       initialBalance: '',
     },
   });
+
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const hasPermission = await isClubAdmin(user.activeClub.id);
+        if (!hasPermission) {
+          toast({
+            variant: "destructive",
+            title: "Acesso negado",
+            description: "Você não tem permissão para gerenciar contas bancárias.",
+          });
+          onClose();
+        }
+      }
+    };
+    if (isOpen) {
+      checkPermissions();
+    }
+  }, [isOpen, user?.activeClub?.id, isClubAdmin, onClose, toast]);
 
   // Reset form when the modal opens/closes or when accountToEdit changes
   useEffect(() => {

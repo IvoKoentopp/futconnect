@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Dialog, 
@@ -13,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { saveMonthlyFeeSetting, fetchMonthlyFeeSettings } from '@/utils/monthlyFees';
 import { MonthlyFeeSetting } from '@/types/monthlyFee';
 
@@ -34,8 +34,27 @@ export function MonthlyFeeSettingsModal({
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isClubAdmin } = useAuthorization();
 
-  // Load existing settings when modal opens
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const hasPermission = await isClubAdmin(user.activeClub.id);
+        if (!hasPermission) {
+          toast({
+            variant: "destructive",
+            title: "Acesso negado",
+            description: "Você não tem permissão para editar configurações.",
+          });
+          onClose();
+        }
+      }
+    };
+    if (isOpen) {
+      checkPermissions();
+    }
+  }, [isOpen, user?.activeClub?.id, isClubAdmin, onClose, toast]);
+
   useEffect(() => {
     const loadExistingSettings = async () => {
       if (!user?.activeClub?.id || !isOpen) return;
@@ -64,7 +83,7 @@ export function MonthlyFeeSettingsModal({
     };
     
     loadExistingSettings();
-  }, [user?.activeClub?.id, isOpen, toast]);
+  }, [isOpen, user?.activeClub?.id, toast]);
 
   const handleSave = async () => {
     if (!user?.activeClub?.id) return;

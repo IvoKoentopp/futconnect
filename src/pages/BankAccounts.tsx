@@ -5,6 +5,7 @@ import { BankAccountModal } from '@/components/BankAccountModal';
 import { TransactionModal } from '@/components/TransactionModal';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { Wallet, PlusCircle, AlertCircle, Trash2, PenLine, ArrowDown, ArrowUp, Filter, FileText, CalendarRange } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { BankAccount, Transaction, TransactionType, PaymentMethod, TransactionStatus } from '@/types/transaction';
@@ -43,8 +44,20 @@ const BankAccounts = () => {
   const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 30)); // Default to last 30 days
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isClubAdmin } = useAuthorization();
+
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const isAdmin = await isClubAdmin(user.activeClub.id);
+        setCanEdit(isAdmin);
+      }
+    };
+    checkPermissions();
+  }, [user?.activeClub?.id, isClubAdmin]);
 
   const loadAccounts = async () => {
     if (!user?.activeClub?.id) return;
@@ -252,7 +265,16 @@ const BankAccounts = () => {
     }
   }, [selectedAccountId, startDate, endDate]);
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
+    if (!canEdit) {
+      toast({
+        variant: "destructive",
+        title: "Acesso negado",
+        description: "Você não tem permissão para excluir contas bancárias.",
+      });
+      return;
+    }
+    
     setDeleteAccountId(id);
     setIsDeleteDialogOpen(true);
   };
@@ -263,19 +285,20 @@ const BankAccounts = () => {
   };
 
   const confirmDelete = async () => {
-    if (!deleteAccountId) return;
+    if (!deleteAccountId || !user?.activeClub?.id || !canEdit) return;
     
     try {
       const { error } = await supabase
         .from('bank_accounts')
         .delete()
-        .eq('id', deleteAccountId);
+        .eq('id', deleteAccountId)
+        .eq('club_id', user.activeClub.id);
       
       if (error) throw error;
       
       toast({
-        title: "Conta bancária excluída com sucesso",
-        description: "A conta foi removida do sistema.",
+        title: "Conta excluída com sucesso",
+        description: "A conta bancária foi removida.",
       });
       
       loadAccounts();
@@ -288,7 +311,7 @@ const BankAccounts = () => {
       console.error('Error deleting bank account:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao excluir conta bancária",
+        title: "Erro ao excluir conta",
         description: "Tente novamente mais tarde.",
       });
     } finally {
@@ -359,25 +382,27 @@ const BankAccounts = () => {
             Gerencie as contas bancárias do {user?.activeClub?.name}
           </p>
         </div>
-        <div className="flex space-x-2">
-          <Button 
-            onClick={() => setIsTransactionModalOpen(true)}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Nova Transação
-          </Button>
-          <Button 
-            onClick={() => {
-              setSelectedAccount(null);
-              setIsModalOpen(true);
-            }}
-            className="bg-futconnect-600 hover:bg-futconnect-700"
-          >
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Nova Conta
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex space-x-2">
+            <Button 
+              onClick={() => setIsTransactionModalOpen(true)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nova Transação
+            </Button>
+            <Button 
+              onClick={() => {
+                setSelectedAccount(null);
+                setIsModalOpen(true);
+              }}
+              className="bg-futconnect-600 hover:bg-futconnect-700"
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nova Conta
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -398,28 +423,32 @@ const BankAccounts = () => {
                 <CardTitle className="text-sm font-medium text-gray-500 flex justify-between items-center">
                   <span>{account.bank} - Ag. {account.branch}</span>
                   <div className="flex space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-futconnect-600 hover:text-futconnect-800"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(account);
-                      }}
-                    >
-                      <PenLine className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-600 hover:text-red-800"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(account.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-futconnect-600 hover:text-futconnect-800"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(account);
+                        }}
+                      >
+                        <PenLine className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-800"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(account.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardTitle>
               </CardHeader>
@@ -441,10 +470,12 @@ const BankAccounts = () => {
               <p className="text-gray-500 text-center mb-4">
                 Você ainda não tem contas bancárias cadastradas.
               </p>
-              <Button onClick={() => setIsModalOpen(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Cadastrar Conta Bancária
-              </Button>
+              {canEdit && (
+                <Button onClick={() => setIsModalOpen(true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Cadastrar Conta Bancária
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -572,12 +603,14 @@ const BankAccounts = () => {
         </CardContent>
       </Card>
 
-      <BankAccountModal 
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onAccountCreated={loadAccounts}
-        accountToEdit={selectedAccount}
-      />
+      {canEdit && (
+        <BankAccountModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onAccountCreated={loadAccounts}
+          accountToEdit={selectedAccount}
+        />
+      )}
 
       <TransactionModal 
         isOpen={isTransactionModalOpen} 
@@ -589,9 +622,9 @@ const BankAccounts = () => {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Conta Bancária</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Conta</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta conta bancária? Esta ação não poderá ser desfeita.
+              Tem certeza que deseja excluir esta conta? Esta ação não poderá ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartOfAccountsModal } from '@/components/ChartOfAccountsModal';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { Book, PlusCircle, PenLine, Trash2, AlertCircle } from 'lucide-react';
 import { fetchChartOfAccounts } from '@/utils/chartOfAccounts';
 import { ChartOfAccount } from '@/types/transaction';
@@ -25,8 +26,20 @@ const ChartOfAccounts = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [canEdit, setCanEdit] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isClubAdmin } = useAuthorization();
+
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const isAdmin = await isClubAdmin(user.activeClub.id);
+        setCanEdit(isAdmin);
+      }
+    };
+    checkPermissions();
+  }, [user?.activeClub?.id, isClubAdmin]);
 
   const loadAccounts = async () => {
     if (!user?.activeClub?.id) return;
@@ -50,11 +63,11 @@ const ChartOfAccounts = () => {
   }, [user?.activeClub?.id]);
 
   const handleDelete = async (id: string) => {
-    if (!user?.activeClub?.id) {
+    if (!canEdit) {
       toast({
         variant: "destructive",
-        title: "Erro",
-        description: "Você precisa selecionar um clube ativo.",
+        title: "Acesso negado",
+        description: "Você não tem permissão para excluir contas.",
       });
       return;
     }
@@ -64,7 +77,7 @@ const ChartOfAccounts = () => {
   };
 
   const confirmDelete = async () => {
-    if (!deleteAccountId || !user?.activeClub?.id) return;
+    if (!deleteAccountId || !user?.activeClub?.id || !canEdit) return;
     
     try {
       const { error } = await supabase
@@ -103,13 +116,15 @@ const ChartOfAccounts = () => {
             Gerencie o plano de contas do {user?.activeClub?.name}
           </p>
         </div>
-        <Button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-futconnect-600 hover:bg-futconnect-700"
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Nova Conta
-        </Button>
+        {canEdit && (
+          <Button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-futconnect-600 hover:bg-futconnect-700"
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Nova Conta
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -128,7 +143,9 @@ const ChartOfAccounts = () => {
                   <tr className="border-b">
                     <th className="py-3 text-left text-sm font-medium text-gray-500">Descrição</th>
                     <th className="py-3 text-left text-sm font-medium text-gray-500">Grupo</th>
-                    <th className="py-3 text-center text-sm font-medium text-gray-500">Ações</th>
+                    {canEdit && (
+                      <th className="py-3 text-center text-sm font-medium text-gray-500">Ações</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -138,16 +155,18 @@ const ChartOfAccounts = () => {
                       <td className="py-3 text-sm text-gray-900">
                         {account.accountGroup === 'income' ? 'Receita' : 'Despesa'}
                       </td>
-                      <td className="py-3 text-center">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className="text-red-600 hover:text-red-800"
-                          onClick={() => handleDelete(account.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </td>
+                      {canEdit && (
+                        <td className="py-3 text-center">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-red-600 hover:text-red-800"
+                            onClick={() => handleDelete(account.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -158,24 +177,28 @@ const ChartOfAccounts = () => {
               <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhuma conta cadastrada</h3>
               <p className="mt-1 text-sm text-gray-500">
-                Comece cadastrando sua primeira conta no plano de contas.
+                {canEdit ? 'Comece cadastrando sua primeira conta no plano de contas.' : 'Nenhuma conta foi cadastrada ainda.'}
               </p>
-              <div className="mt-6">
-                <Button onClick={() => setIsModalOpen(true)}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Nova Conta
-                </Button>
-              </div>
+              {canEdit && (
+                <div className="mt-6">
+                  <Button onClick={() => setIsModalOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Nova Conta
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
 
-      <ChartOfAccountsModal 
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onAccountCreated={loadAccounts}
-      />
+      {canEdit && (
+        <ChartOfAccountsModal 
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onAccountCreated={loadAccounts}
+        />
+      )}
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>

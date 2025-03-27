@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -20,6 +19,7 @@ import { MonthlyFee, MonthlyFeePaymentMethod } from '@/types/monthlyFee';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import {
   Select,
   SelectContent,
@@ -52,8 +52,29 @@ export function MonthlyFeePaymentModal({
   const [paymentMethod, setPaymentMethod] = useState<MonthlyFeePaymentMethod>('pix');
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isClubAdmin } = useAuthorization();
+
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const hasPermission = await isClubAdmin(user.activeClub.id);
+        if (!hasPermission) {
+          toast({
+            variant: "destructive",
+            title: "Acesso negado",
+            description: "Você não tem permissão para registrar pagamentos.",
+          });
+          onClose();
+        }
+      }
+    };
+    if (isOpen) {
+      checkPermissions();
+    }
+  }, [isOpen, user?.activeClub?.id, isClubAdmin, onClose, toast]);
 
   // Fetch bank accounts when modal is opened
   useEffect(() => {
@@ -219,7 +240,7 @@ export function MonthlyFeePaymentModal({
           <Button 
             variant="confirm"
             onClick={handleRecordPayment}
-            disabled={!paymentDate || !bankAccountId || isLoading || bankAccounts.length === 0}
+            disabled={!paymentDate || !bankAccountId || isLoading || bankAccounts.length === 0 || isSubmitting}
           >
             Registrar Pagamento
           </Button>

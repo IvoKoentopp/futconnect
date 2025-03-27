@@ -3,10 +3,12 @@ import {
   Users, 
   UserPlus,
   Loader2,
-  Trash2
+  Trash2,
+  ShieldAlert
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthorization } from "@/hooks/useAuthorization";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +47,7 @@ interface ClubMember {
 export const ClubAdminSettings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canEdit } = useAuthorization();
   const [admins, setAdmins] = useState<ClubAdmin[]>([]);
   const [activeMembers, setActiveMembers] = useState<ClubMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +82,6 @@ export const ClubAdminSettings = () => {
   const fetchClubAdmins = async () => {
     setLoading(true);
     try {
-      // Usando uma abordagem do tipo não verificada para acessar a nova tabela
       const { data, error } = await supabase
         .from('club_admins')
         .select('id, name, email, created_at')
@@ -94,355 +96,279 @@ export const ClubAdminSettings = () => {
           description: "Não foi possível carregar a lista de administradores do clube."
         });
       } else {
-        // Tipagem segura para o nosso estado
         const typedData = data as unknown as ClubAdmin[];
         setAdmins(typedData || []);
       }
     } catch (error) {
       console.error('Error:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar administradores",
+        description: "Ocorreu um erro ao carregar a lista de administradores."
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const fetchActiveMembers = async () => {
+    if (!canEdit) return;
+
     setLoadingMembers(true);
     try {
       const { data, error } = await supabase
-        .from('members')
-        .select('id, name, email, password')
+        .from('club_members')
+        .select('id, name, email')
         .eq('club_id', user?.activeClub?.id)
-        .eq('status', 'Ativo')
+        .eq('is_active', true)
         .order('name');
-      
+
       if (error) {
-        console.error('Error fetching active members:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro ao carregar sócios",
-          description: "Não foi possível carregar a lista de sócios ativos do clube."
-        });
-      } else {
-        // Filter out members who are already admins
-        const filteredMembers = (data || []).filter(member => 
-          !admins.some(admin => admin.email === member.email)
-        );
-        setActiveMembers(filteredMembers as ClubMember[]);
+        throw error;
       }
+
+      // Filter out members who are already admins
+      const membersNotAdmin = data?.filter(member => 
+        !admins.some(admin => admin.email === member.email)
+      );
+
+      setActiveMembers(membersNotAdmin || []);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching members:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar sócios",
+        description: "Não foi possível carregar a lista de sócios ativos."
+      });
     } finally {
       setLoadingMembers(false);
     }
   };
 
-  const onSubmitNewAdmin = async (data: z.infer<typeof newAdminSchema>) => {
-    if (!user?.activeClub?.id) {
+  const handleAddAdmin = async (values: z.infer<typeof newAdminSchema>) => {
+    if (!canEdit) {
       toast({
         variant: "destructive",
-        title: "Erro",
-        description: "Nenhum clube ativo selecionado."
+        title: "Acesso negado",
+        description: "Apenas administradores podem adicionar novos administradores.",
       });
       return;
     }
 
     try {
-      // Find the selected member from our list
-      const selectedMember = activeMembers.find(member => member.id === data.memberId);
-      
+      setLoading(true);
+
+      // Find the selected member
+      const selectedMember = activeMembers.find(member => member.id === values.memberId);
       if (!selectedMember) {
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Sócio não encontrado."
-        });
-        return;
+        throw new Error('Sócio não encontrado');
       }
 
-      // Check if email already exists using a não-tipada abordagem para club_admins
-      const { data: existingAdmin, error: checkError } = await supabase
-        .from('club_admins')
-        .select('id')
-        .eq('email', selectedMember.email)
-        .eq('club_id', user.activeClub.id)
-        .maybeSingle();
-
-      if (existingAdmin) {
-        toast({
-          variant: "destructive",
-          title: "Erro ao adicionar administrador",
-          description: "Já existe um administrador com este e-mail."
-        });
-        return;
-      }
-
-      // Add new admin using a não-tipada abordagem para club_admins
       const { error } = await supabase
         .from('club_admins')
         .insert({
-          club_id: user.activeClub.id,
-          name: selectedMember.name,
+          club_id: user?.activeClub?.id,
           email: selectedMember.email,
-          password: selectedMember.password // Use the member's existing password
+          name: selectedMember.name
         });
 
       if (error) {
-        console.error('Error adding club admin:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro ao adicionar administrador",
-          description: "Ocorreu um erro ao adicionar o administrador. Tente novamente."
-        });
-        return;
+        throw error;
       }
 
       toast({
         title: "Administrador adicionado",
-        description: "O administrador foi adicionado com sucesso."
+        description: "O sócio foi adicionado como administrador com sucesso."
       });
 
-      // Reset form and close dialog
+      // Reset form and refresh lists
       newAdminForm.reset();
       setOpenNewAdminDialog(false);
-      
-      // Refresh admin list
       fetchClubAdmins();
     } catch (error) {
-      console.error('Error adding club admin:', error);
+      console.error('Error adding admin:', error);
       toast({
         variant: "destructive",
         title: "Erro ao adicionar administrador",
-        description: "Ocorreu um erro ao adicionar o administrador. Tente novamente."
+        description: "Não foi possível adicionar o sócio como administrador."
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteAdmin = async (adminId: string) => {
-    if (!user?.activeClub?.id) {
+  const handleRemoveAdmin = async (adminId: string) => {
+    if (!canEdit) {
       toast({
         variant: "destructive",
-        title: "Erro",
-        description: "Nenhum clube ativo selecionado."
+        title: "Acesso negado",
+        description: "Apenas administradores podem remover administradores.",
       });
       return;
     }
 
     try {
       setDeleteLoading(true);
-      
+
       const { error } = await supabase
         .from('club_admins')
         .delete()
-        .eq('id', adminId)
-        .eq('club_id', user.activeClub.id);
-      
+        .eq('id', adminId);
+
       if (error) {
-        console.error('Error deleting club admin:', error);
-        toast({
-          variant: "destructive",
-          title: "Erro ao excluir administrador",
-          description: "Ocorreu um erro ao excluir o administrador. Tente novamente."
-        });
-        return;
+        throw error;
       }
 
       toast({
-        title: "Administrador excluído",
-        description: "O administrador foi excluído com sucesso."
+        title: "Administrador removido",
+        description: "O administrador foi removido com sucesso."
       });
-      
-      // Refresh admin list
+
+      // Refresh list
       fetchClubAdmins();
     } catch (error) {
-      console.error('Error deleting club admin:', error);
+      console.error('Error removing admin:', error);
       toast({
         variant: "destructive",
-        title: "Erro ao excluir administrador",
-        description: "Ocorreu um erro ao excluir o administrador. Tente novamente."
+        title: "Erro ao remover administrador",
+        description: "Não foi possível remover o administrador."
       });
     } finally {
       setDeleteLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-futconnect-600" />
+          <Users className="h-5 w-5" />
           Administradores do Clube
         </CardTitle>
         <CardDescription>
-          Gerencie os administradores que têm acesso ao seu clube.
+          Gerencie os administradores do seu clube
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="flex justify-between items-center mb-6">
-          <p className="text-sm text-gray-500">
-            Administradores têm acesso completo à gestão do clube.
-          </p>
+      <CardContent className="space-y-4">
+        {!canEdit && (
+          <div className="flex items-center gap-2 p-4 bg-yellow-50 text-yellow-800 rounded-md mb-4">
+            <ShieldAlert className="h-5 w-5" />
+            <p>Você está no modo visualização. Apenas administradores podem gerenciar outros administradores.</p>
+          </div>
+        )}
 
-          <Dialog open={openNewAdminDialog} onOpenChange={setOpenNewAdminDialog}>
-            <DialogTrigger asChild>
-              <Button className="bg-futconnect-600 hover:bg-futconnect-700">
-                <UserPlus className="h-4 w-4 mr-2" />
-                Novo Administrador
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Adicionar Novo Administrador</DialogTitle>
-                <DialogDescription>
-                  Selecione um sócio ativo para torná-lo administrador do clube.
-                </DialogDescription>
-              </DialogHeader>
-              {loadingMembers ? (
-                <div className="flex justify-center items-center p-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-futconnect-600" />
-                  <span className="ml-2">Carregando sócios...</span>
-                </div>
-              ) : (
-                <Form {...newAdminForm}>
-                  <form onSubmit={newAdminForm.handleSubmit(onSubmitNewAdmin)} className="space-y-4 py-4">
-                    <FormField
-                      control={newAdminForm.control}
-                      name="memberId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Sócio</FormLabel>
-                          <FormControl>
-                            <Select 
-                              onValueChange={field.onChange} 
-                              defaultValue={field.value}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione um sócio" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {activeMembers.length === 0 ? (
-                                  <SelectItem value="no-members" disabled>
-                                    Nenhum sócio ativo disponível
-                                  </SelectItem>
-                                ) : (
-                                  activeMembers.map((member) => (
-                                    <SelectItem key={member.id} value={member.id}>
-                                      {member.name}
-                                    </SelectItem>
-                                  ))
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <DialogFooter className="mt-6">
-                      <Button 
-                        type="submit" 
-                        className="bg-futconnect-600"
-                        disabled={activeMembers.length === 0}
+        {/* Lista de Administradores */}
+        <div className="space-y-2">
+          {admins.map((admin) => (
+            <div
+              key={admin.id}
+              className="flex items-center justify-between p-2 rounded-md border"
+            >
+              <div className="flex flex-col">
+                <span className="font-medium">{admin.name}</span>
+                <span className="text-sm text-muted-foreground">{admin.email}</span>
+              </div>
+              {canEdit && admin.email !== user?.email && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={deleteLoading}
+                    >
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remover administrador?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. O usuário perderá acesso às funcionalidades de administrador.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleRemoveAdmin(admin.id)}
+                        className="bg-red-500 hover:bg-red-600"
                       >
-                        Adicionar Administrador
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
+                        Remover
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
-            </DialogContent>
-          </Dialog>
+            </div>
+          ))}
         </div>
 
-        {loading ? (
-          <div className="flex justify-center items-center p-8">
-            <Loader2 className="h-6 w-6 animate-spin text-futconnect-600" />
-            <span className="ml-2">Carregando administradores...</span>
-          </div>
-        ) : (
-          <>
-            {admins.length === 0 ? (
-              <div className="text-center py-8 border border-dashed border-gray-200 rounded-md">
-                <p className="text-gray-500">Nenhum administrador adicional foi cadastrado.</p>
-                <p className="text-sm text-gray-400 mt-1">Clique em "Novo Administrador" para adicionar.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Nome</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">E-mail</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Data de cadastro</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {admins.map((admin) => (
-                      <tr key={admin.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm">{admin.name}</td>
-                        <td className="px-4 py-3 text-sm">{admin.email}</td>
-                        <td className="px-4 py-3 text-sm">{formatDate(admin.created_at)}</td>
-                        <td className="px-4 py-3 text-sm flex gap-2">
-                          <Button
-                            variant="ghost"
-                            className="h-8 px-2 text-futconnect-600 hover:text-futconnect-700"
-                            onClick={() => {
-                              toast({
-                                title: "Funcionalidade em desenvolvimento",
-                                description: "A edição de administradores estará disponível em breve."
-                              });
-                            }}
-                          >
-                            Editar
-                          </Button>
-                          
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost" 
-                                className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir administrador</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir este administrador? Esta ação não pode ser desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteAdmin(admin.id)}
-                                  className="bg-red-600 hover:bg-red-700 text-white"
-                                  disabled={deleteLoading}
-                                >
-                                  {deleteLoading ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Excluindo...
-                                    </>
-                                  ) : (
-                                    "Excluir"
-                                  )}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
+        {/* Botão e Dialog para Adicionar Administrador */}
+        {canEdit && (
+          <Dialog open={openNewAdminDialog} onOpenChange={setOpenNewAdminDialog}>
+            <DialogTrigger asChild>
+              <Button className="w-full">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Adicionar Administrador
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Adicionar Administrador</DialogTitle>
+                <DialogDescription>
+                  Selecione um sócio para torná-lo administrador do clube.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...newAdminForm}>
+                <form onSubmit={newAdminForm.handleSubmit(handleAddAdmin)} className="space-y-4">
+                  <FormField
+                    control={newAdminForm.control}
+                    name="memberId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Sócio</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          disabled={loadingMembers}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um sócio" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {activeMembers.map((member) => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button type="submit" disabled={loading}>
+                      {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Adicionar"
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         )}
       </CardContent>
     </Card>

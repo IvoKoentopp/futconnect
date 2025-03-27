@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthorization } from '@/hooks/useAuthorization';
 import { Transaction, TransactionType, PaymentMethod, TransactionStatus } from '@/types/transaction';
 import { supabase } from '@/integrations/supabase/client';
 import { DateInput } from '@/components/ui/date-input';
@@ -33,13 +34,17 @@ interface TransactionModalProps {
   onClose: () => void;
   onTransactionCreated?: () => void;
   transactionToEdit?: Transaction | null;
+  bankAccounts: {id: string, name: string}[];
+  chartOfAccounts: {id: string, description: string}[];
 }
 
 export function TransactionModal({ 
   isOpen, 
   onClose,
   onTransactionCreated,
-  transactionToEdit
+  transactionToEdit,
+  bankAccounts,
+  chartOfAccounts
 }: TransactionModalProps) {
   const [date, setDate] = useState<Date>(new Date());
   const [type, setType] = useState<TransactionType>('income');
@@ -53,11 +58,29 @@ export function TransactionModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [bankAccounts, setBankAccounts] = useState<{id: string, name: string}[]>([]);
-  const [chartOfAccounts, setChartOfAccounts] = useState<{id: string, description: string}[]>([]);
   
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isClubAdmin } = useAuthorization();
+
+  useEffect(() => {
+    const checkPermissions = async () => {
+      if (user?.activeClub?.id) {
+        const hasPermission = await isClubAdmin(user.activeClub.id);
+        if (!hasPermission) {
+          toast({
+            variant: "destructive",
+            title: "Acesso negado",
+            description: "Você não tem permissão para gerenciar transações.",
+          });
+          onClose();
+        }
+      }
+    };
+    if (isOpen) {
+      checkPermissions();
+    }
+  }, [isOpen, user?.activeClub?.id, isClubAdmin, onClose, toast]);
 
   // Fetch bank accounts and chart of accounts
   useEffect(() => {
