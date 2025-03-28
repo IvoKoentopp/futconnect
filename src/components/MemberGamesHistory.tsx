@@ -1,10 +1,11 @@
-
 import React from 'react';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { MemberGameParticipation, MemberScoreDetails } from '@/hooks/useMemberGames';
+import { Card, CardContent } from "@/components/ui/card";
+import { Gamepad, CheckCircle, XCircle } from "lucide-react";
 
 interface MemberGamesHistoryProps {
   games: MemberGameParticipation[];
@@ -57,6 +58,56 @@ const MemberGamesHistory: React.FC<MemberGamesHistoryProps> = ({
   
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Card - Total de Jogos */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center">
+              <Gamepad className="h-8 w-8 text-blue-500 mb-2" />
+              <h3 className="text-lg font-medium">Total de Jogos</h3>
+              <p className="text-2xl font-bold text-blue-600 mt-2">
+                {games.length}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                participações registradas
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card - Total de Confirmações */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center">
+              <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
+              <h3 className="text-lg font-medium">Total de Confirmações</h3>
+              <p className="text-2xl font-bold text-green-600 mt-2">
+                {games.filter(game => game.status === 'confirmed').length}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                jogos confirmados
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card - Total de Recusados */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center">
+              <XCircle className="h-8 w-8 text-red-500 mb-2" />
+              <h3 className="text-lg font-medium">Total de Recusados</h3>
+              <p className="text-2xl font-bold text-red-600 mt-2">
+                {games.filter(game => game.status === 'declined').length}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                jogos recusados
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Table>
         <TableCaption>Histórico de jogos do sócio</TableCaption>
         <TableHeader>

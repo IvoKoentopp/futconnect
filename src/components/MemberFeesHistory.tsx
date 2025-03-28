@@ -18,6 +18,8 @@ import { toast } from "sonner";
 import { MonthlyFee } from '@/types/monthlyFee';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { Card, CardContent } from "@/components/ui/card";
+import { CircleDollarSign, Clock, AlertCircle } from "lucide-react";
 
 // Helper function to format date
 const formatDate = (dateStr?: string) => {
@@ -178,6 +180,59 @@ const MemberFeesHistory: React.FC<MemberFeesHistoryProps> = ({
   
   return (
     <div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Card - Total Pago */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center">
+              <CircleDollarSign className="h-8 w-8 text-green-500 mb-2" />
+              <h3 className="text-lg font-medium">Total Pago</h3>
+              <p className="text-2xl font-bold text-green-600 mt-2">
+                {formatCurrency(fees.filter(fee => fee.status === 'paid' || fee.status === 'paid_late')
+                  .reduce((sum, fee) => sum + fee.amount, 0))}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {fees.filter(fee => fee.status === 'paid' || fee.status === 'paid_late').length} mensalidades
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card - Total Pendente */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center">
+              <Clock className="h-8 w-8 text-yellow-500 mb-2" />
+              <h3 className="text-lg font-medium">Total Pendente</h3>
+              <p className="text-2xl font-bold text-yellow-600 mt-2">
+                {formatCurrency(fees.filter(fee => fee.status === 'pending')
+                  .reduce((sum, fee) => sum + fee.amount, 0))}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {fees.filter(fee => fee.status === 'pending').length} mensalidades
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card - Total em Atraso */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center">
+              <AlertCircle className="h-8 w-8 text-red-500 mb-2" />
+              <h3 className="text-lg font-medium">Total em Atraso</h3>
+              <p className="text-2xl font-bold text-red-600 mt-2">
+                {formatCurrency(fees.filter(fee => fee.status === 'late')
+                  .reduce((sum, fee) => sum + fee.amount, 0))}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {fees.filter(fee => fee.status === 'late').length} mensalidades
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="flex justify-end mb-4">
         <Button
           variant="outline"

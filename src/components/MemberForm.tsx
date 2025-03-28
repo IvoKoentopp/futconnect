@@ -44,6 +44,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DateInput } from "@/components/ui/date-input";
 import { parse } from "date-fns";
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Player positions
 const positions = [
@@ -60,6 +62,52 @@ const memberFormSchema = z.object({
   }),
   nickname: z.string().min(2, {
     message: "O apelido deve ter pelo menos 2 caracteres.",
+  }).superRefine(async (nickname, ctx) => {
+    // Skip validation if editing and nickname hasn't changed
+    const formData = ctx.path[0] === 'nickname' ? (ctx.parent as any) : null;
+    if (formData?.id && nickname === formData.originalNickname) {
+      return;
+    }
+
+    try {
+      const { data: auth } = await supabase.auth.getSession();
+      if (!auth?.session?.user) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Usuário não autenticado",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('members')
+        .select('id')
+        .eq('club_id', auth.session.user.user_metadata.activeClub.id)
+        .eq('nickname', nickname)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking nickname:', error);
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Erro ao verificar apelido",
+        });
+        return;
+      }
+
+      if (data) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Este apelido já está em uso no clube",
+        });
+      }
+    } catch (error) {
+      console.error('Error in nickname validation:', error);
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Erro ao validar apelido",
+      });
+    }
   }),
   email: z.string().email({
     message: "Email inválido.",
@@ -80,6 +128,7 @@ const memberFormSchema = z.object({
   status: z.enum(["Ativo", "Inativo", "Suspenso", "Sistema"]).optional().default("Ativo"),
   sponsorId: z.string().optional(),
   positions: z.array(z.string()).optional().default([]),
+  originalNickname: z.string().optional(), // Adicionado para comparação na edição
 });
 
 type MemberFormValues = z.infer<typeof memberFormSchema>;
@@ -102,6 +151,7 @@ export function MemberForm({
   clubMembers = []
 }: MemberFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [photoPreview, setPhotoPreview] = useState<string | null>(defaultValues?.photo || null);
   
   // Set default form values
@@ -110,6 +160,7 @@ export function MemberForm({
     defaultValues: {
       name: defaultValues?.name || "",
       nickname: defaultValues?.nickname || "",
+      originalNickname: defaultValues?.nickname, // Adicionado para comparação na edição
       email: defaultValues?.email || "",
       password: defaultValues?.password || "",
       birthDate: defaultValues?.birthDate,

@@ -55,22 +55,37 @@ const MemberProfile = () => {
     
     setIsLoading(true);
     try {
+      // Buscar todos os membros do clube e seus afilhados
       const { data, error } = await supabase
         .from('members')
-        .select('*')
+        .select(`
+          *,
+          godchildren:members(
+            id,
+            name,
+            nickname,
+            status
+          )
+        `)
         .eq('club_id', user.activeClub.id)
-        .neq('status', 'Sistema') // Filter out members with "Sistema" status
-        .order('name');
+        .neq('status', 'Sistema')
+        .order('name', { ascending: true });
         
       if (error) throw error;
+
+      // Processar os afilhados para cada membro
+      const membersWithGodchildren = data?.map(member => ({
+        ...member,
+        godchildren: data.filter(m => m.sponsor_id === member.id)
+      }));
       
-      setMembers(data);
+      setMembers(membersWithGodchildren || []);
       
       // Set the first member as selected by default
-      if (data && data.length > 0) {
-        setSelectedMember(data[0]);
+      if (membersWithGodchildren?.length > 0) {
+        setSelectedMember(membersWithGodchildren[0]);
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erro ao carregar sócios",
         description: error.message,
@@ -123,6 +138,11 @@ const MemberProfile = () => {
     const registrationDate = selectedMember.registration_date 
       ? parseExactDate(selectedMember.registration_date) 
       : null;
+
+    // Get departure date or current date for tenure calculation
+    const departureDate = selectedMember.departure_date
+      ? parseExactDate(selectedMember.departure_date)
+      : new Date();
     
     // Calculate age
     const birthDate = selectedMember.birth_date 
@@ -142,9 +162,10 @@ const MemberProfile = () => {
     return {
       tenure: registrationDate 
         ? { 
-            years: differenceInYears(new Date(), registrationDate),
-            months: differenceInMonths(new Date(), registrationDate) % 12,
-            days: differenceInDays(new Date(), registrationDate) % 30
+            years: differenceInYears(departureDate, registrationDate),
+            months: differenceInMonths(departureDate, registrationDate) % 12,
+            days: differenceInDays(departureDate, registrationDate) % 30,
+            isFormer: !!selectedMember.departure_date
           }
         : null,
       age: birthDate 
@@ -315,7 +336,7 @@ const MemberProfile = () => {
                   <CardContent className="space-y-6">
                     <Separator />
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-4">
                         <h3 className="text-lg font-medium flex items-center">
                           <User className="mr-2 h-5 w-5 text-gray-500" /> 
@@ -364,20 +385,6 @@ const MemberProfile = () => {
                             </div>
                           </div>
                           
-                          {selectedMember.positions && selectedMember.positions.length > 0 && (
-                            <div className="flex items-start">
-                              <UserCheck className="h-5 w-5 text-gray-500 mr-3 mt-0.5" />
-                              <div>
-                                <p className="text-sm text-gray-500">Posições</p>
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {selectedMember.positions.map((position, idx) => (
-                                    <Badge key={idx} variant="outline">{position}</Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          
                           <div className="flex items-start">
                             <Clock className="h-5 w-5 text-gray-500 mr-3 mt-0.5" />
                             <div>
@@ -385,8 +392,62 @@ const MemberProfile = () => {
                               <p>{formatDisplayDate(selectedMember.payment_start_date)}</p>
                             </div>
                           </div>
+
+                          <div className="flex items-start">
+                            <Clock className="h-5 w-5 text-gray-500 mr-3 mt-0.5" />
+                            <div>
+                              <p className="text-sm text-gray-500">Data de Saída</p>
+                              <p>{formatDisplayDate(selectedMember.departure_date)}</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium flex items-center">
+                          <UserCheck className="mr-2 h-5 w-5 text-gray-500" /> 
+                          Posições Preferidas
+                        </h3>
+                        
+                        <div>
+                          {selectedMember.positions?.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {selectedMember.positions.map((position, idx) => (
+                                <Badge key={idx} variant="outline" className="text-sm py-1 px-3">{position}</Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500">Nenhuma posição informada</p>
+                          )}
+                        </div>
+
+                        <Separator className="my-4" />
+
+                        <h3 className="text-lg font-medium flex items-center">
+                          <Users className="mr-2 h-5 w-5 text-gray-500" /> 
+                          Afilhados
+                        </h3>
+                        
+                        <div className="space-y-2">
+                          {selectedMember?.godchildren?.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              {selectedMember.godchildren.map((godchild) => (
+                                <div key={godchild.id} className="flex items-center gap-2 text-sm">
+                                  <span className="text-muted-foreground">
+                                    {godchild.nickname || godchild.name}
+                                  </span>
+                                  <Badge variant="outline" className={getStatusBadgeColor(godchild.status)}>
+                                    {godchild.status}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Nenhum afilhado encontrado</p>
+                          )}
+                        </div>
+                      </div>
+
                     </div>
                   </CardContent>
                 </Card>
@@ -471,6 +532,19 @@ const MemberProfile = () => {
                                         </span>
                                         <span className="text-sm ml-1">meses</span>
                                       </>
+                                    )}
+                                    {stats.tenure.days > 0 && (
+                                      <>
+                                        <span className="text-3xl font-bold ml-2">
+                                          {stats.tenure.days}
+                                        </span>
+                                        <span className="text-sm ml-1">dias</span>
+                                      </>
+                                    )}
+                                    {stats.tenure.isFormer && (
+                                      <p className="text-sm text-muted-foreground mt-1">
+                                        (Ex-sócio)
+                                      </p>
                                     )}
                                   </div>
                                 ) : (

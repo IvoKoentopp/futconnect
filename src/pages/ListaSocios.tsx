@@ -27,7 +27,8 @@ import {
   MoreVertical,
   Save,
   Upload,
-  ShieldAlert
+  ShieldAlert,
+  Key
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { format, parse } from 'date-fns';
@@ -58,6 +59,7 @@ import {
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
+import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 
 interface DatabaseMember {
   id: string;
@@ -148,6 +150,8 @@ const ListaSocios = () => {
   const [editedMember, setEditedMember] = useState<FormattedMember | null>(null);
   const [availableSponsors, setAvailableSponsors] = useState<DatabaseMember[]>([]);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [memberToChangePassword, setMemberToChangePassword] = useState<FormattedMember | null>(null);
   
   // Parse date from YYYY-MM-DD string without timezone conversion
   const parseExactDate = (dateStr: string | null) => {
@@ -536,6 +540,13 @@ const ListaSocios = () => {
     }
   };
 
+  // Handle opening change password dialog
+  const handleOpenChangePassword = (e: React.MouseEvent, member: FormattedMember) => {
+    e.stopPropagation();
+    setMemberToChangePassword(member);
+    setIsChangePasswordOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -678,23 +689,41 @@ const ListaSocios = () => {
                             <StatusBadge status={member.status} />
                           </TableCell>
                           <TableCell>{member.sponsorNickname !== '-' ? member.sponsorNickname : member.sponsorName}</TableCell>
-                          <TableCell className="text-right">
-                            {canEdit && (
+                          <TableCell className="w-[100px]">
+                            {(canEdit || user?.memberId === member.id) && (
                               <DropdownMenu>
-                                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Abrir menu</span>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
                                     <MoreVertical className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem 
-                                    className="text-red-600"
-                                    onClick={(e) => handleOpenDeleteDialog(e, member)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Excluir
-                                  </DropdownMenuItem>
+                                  {user?.memberId === member.id && (
+                                    <>
+                                      <DropdownMenuItem
+                                        onClick={(e) => handleOpenChangePassword(e, member)}
+                                      >
+                                        <Key className="mr-2 h-4 w-4" />
+                                        Alterar Senha
+                                      </DropdownMenuItem>
+                                      {canEdit && <DropdownMenuSeparator />}
+                                    </>
+                                  )}
+                                  
+                                  {canEdit && (
+                                    <>
+                                      <DropdownMenuItem
+                                        onClick={(e) => handleOpenDeleteDialog(e, member)}
+                                      >
+                                        <Trash2 className="mr-2 h-4 w-4 text-red-600" />
+                                        Excluir
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             )}
@@ -1127,6 +1156,18 @@ const ListaSocios = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Change Password Dialog */}
+      {memberToChangePassword && (
+        <ChangePasswordDialog
+          isOpen={isChangePasswordOpen}
+          onClose={() => {
+            setIsChangePasswordOpen(false);
+            setMemberToChangePassword(null);
+          }}
+          memberId={memberToChangePassword.id}
+        />
+      )}
       
       {/* Aviso de permissões */}
       {!canEdit && (
