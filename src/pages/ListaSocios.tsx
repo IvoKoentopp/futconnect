@@ -59,6 +59,50 @@ import {
   DialogTitle 
 } from "@/components/ui/dialog";
 
+interface DatabaseMember {
+  id: string;
+  name: string;
+  nickname: string | null;
+  email: string;
+  phone: string | null;
+  birth_date: string;
+  photo_url: string | null;
+  registration_date: string;
+  payment_start_date: string | null;
+  departure_date?: string | null;  // Opcional para compatibilidade com o banco
+  category: string;
+  status: string;
+  sponsor_id: string | null;
+  positions: string[];
+  club_id: string;
+  password: string;
+  created_at: string;
+  updated_at?: string;  // Opcional para compatibilidade com o banco
+  sponsor?: {
+    name: string;
+    nickname: string | null;
+  };
+}
+
+interface FormattedMember {
+  id: string;
+  name: string;
+  nickname: string;
+  email: string;
+  phone: string;
+  photo: string | null;
+  birthDate: Date | null;
+  registrationDate: Date | null;
+  paymentStartDate: Date | null;
+  departureDate: Date | null;
+  category: string;
+  status: string;
+  sponsorId: string | null;
+  sponsorName: string;
+  sponsorNickname: string;
+  positions: string[];
+}
+
 // Status badge component
 const StatusBadge = ({ status }: { status: string }) => {
   let className = '';
@@ -92,17 +136,17 @@ const ListaSocios = () => {
   const { toast } = useToast();
   const { canEdit } = useAuthorization();
   const isMobile = useIsMobile();
-  const [members, setMembers] = useState<any[]>([]);
+  const [members, setMembers] = useState<FormattedMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [selectedMember, setSelectedMember] = useState<FormattedMember | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [memberToDelete, setMemberToDelete] = useState<any>(null);
+  const [memberToDelete, setMemberToDelete] = useState<FormattedMember | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editedMember, setEditedMember] = useState<any>(null);
-  const [availableSponsors, setAvailableSponsors] = useState<any[]>([]);
+  const [editedMember, setEditedMember] = useState<FormattedMember | null>(null);
+  const [availableSponsors, setAvailableSponsors] = useState<DatabaseMember[]>([]);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   
   // Parse date from YYYY-MM-DD string without timezone conversion
@@ -130,7 +174,7 @@ const ListaSocios = () => {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: membersData, error } = await supabase
         .from('members')
         .select('*, sponsor:sponsor_id(name, nickname)')
         .eq('club_id', user.activeClub.id)
@@ -139,23 +183,23 @@ const ListaSocios = () => {
       if (error) throw error;
       
       // Format the data for display - ensuring dates are handled correctly
-      const formattedMembers = data.map(member => {
+      const formattedMembers: FormattedMember[] = (membersData as DatabaseMember[]).map(member => {
         return {
           id: member.id,
           name: member.name,
           nickname: member.nickname || '-',
-          // Parse dates directly without timezone conversion
-          birthDate: parseExactDate(member.birth_date),
-          category: member.category,
-          status: member.status,
-          sponsorName: member.sponsor?.name || '-',
-          sponsorNickname: member.sponsor?.nickname || '-',
-          sponsorId: member.sponsor_id,
           email: member.email,
           phone: member.phone || '-',
           photo: member.photo_url,
+          birthDate: parseExactDate(member.birth_date),
           registrationDate: parseExactDate(member.registration_date),
           paymentStartDate: parseExactDate(member.payment_start_date),
+          departureDate: parseExactDate(member.departure_date),
+          category: member.category,
+          status: member.status,
+          sponsorId: member.sponsor_id,
+          sponsorName: member.sponsor?.name || '-',
+          sponsorNickname: member.sponsor?.nickname || '-',
           positions: member.positions || []
         };
       });
@@ -178,15 +222,15 @@ const ListaSocios = () => {
     if (!user?.activeClub?.id) return;
     
     try {
-      const { data, error } = await supabase
+      const { data: sponsorsData, error } = await supabase
         .from('members')
-        .select('id, name, nickname')
+        .select('*')
         .eq('club_id', user.activeClub.id)
         .order('name');
       
       if (error) throw error;
       
-      setAvailableSponsors(data);
+      setAvailableSponsors(sponsorsData as DatabaseMember[]);
     } catch (error: any) {
       console.error("Error loading sponsors:", error);
     }
@@ -209,7 +253,7 @@ const ListaSocios = () => {
   });
   
   // Handle opening member detail view
-  const handleOpenDetail = (member: any) => {
+  const handleOpenDetail = (member: FormattedMember) => {
     setSelectedMember(member);
     setIsDetailOpen(true);
   };
@@ -351,6 +395,7 @@ const ListaSocios = () => {
         birth_date: formatDateForDB(editedMember.birthDate),
         registration_date: formatDateForDB(editedMember.registrationDate),
         payment_start_date: formatDateForDB(editedMember.paymentStartDate),
+        departure_date: formatDateForDB(editedMember.departureDate),
         category: editedMember.category,
         status: editedMember.status,
         sponsor_id: editedMember.sponsorId || null,
@@ -384,7 +429,7 @@ const ListaSocios = () => {
   };
 
   // Handle opening delete confirmation dialog
-  const handleOpenDeleteDialog = (e: React.MouseEvent, member: any) => {
+  const handleOpenDeleteDialog = (e: React.MouseEvent, member: FormattedMember) => {
     e.stopPropagation();
     if (!canEdit) {
       toast({
@@ -458,6 +503,7 @@ const ListaSocios = () => {
           'Padrinho': member.sponsorNickname !== '-' ? member.sponsorNickname : member.sponsorName,
           'Data de Cadastro': member.registrationDate ? formatDisplayDate(member.registrationDate) : '-',
           'Início de Pagamento': member.paymentStartDate ? formatDisplayDate(member.paymentStartDate) : '-',
+          'Data de Saída': member.departureDate ? formatDisplayDate(member.departureDate) : '-',
           'Posições': member.positions && member.positions.length > 0 
             ? member.positions.map((pos: string) => pos.charAt(0).toUpperCase() + pos.slice(1)).join(', ')
             : '-'
@@ -557,7 +603,6 @@ const ListaSocios = () => {
                           <h3 className="font-medium text-gray-900">{member.name}</h3>
                           <p className="text-sm text-gray-500">{member.nickname !== '-' ? member.nickname : ''}</p>
                         </div>
-                        <StatusBadge status={member.status} />
                       </div>
                       
                       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
@@ -601,9 +646,9 @@ const ListaSocios = () => {
                         <TableHead>Nome</TableHead>
                         <TableHead>Data de Nascimento</TableHead>
                         <TableHead>Apelido</TableHead>
-                        <TableHead>Padrinho</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
+                        <TableHead>Padrinho</TableHead>
+                        <TableHead>Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -629,10 +674,10 @@ const ListaSocios = () => {
                             {formatDisplayDate(member.birthDate)}
                           </TableCell>
                           <TableCell>{member.nickname}</TableCell>
-                          <TableCell>{member.sponsorNickname !== '-' ? member.sponsorNickname : member.sponsorName}</TableCell>
                           <TableCell>
                             <StatusBadge status={member.status} />
                           </TableCell>
+                          <TableCell>{member.sponsorNickname !== '-' ? member.sponsorNickname : member.sponsorName}</TableCell>
                           <TableCell className="text-right">
                             {canEdit && (
                               <DropdownMenu>
@@ -688,11 +733,11 @@ const ListaSocios = () => {
                     <div className="mb-3">
                       <label htmlFor="photo-upload" className="cursor-pointer">
                         <Avatar className="h-28 w-28 mb-2 relative group">
-                          {editedMember.photo ? (
+                          {editedMember?.photo ? (
                             <AvatarImage src={editedMember.photo} alt={editedMember.name} />
                           ) : (
                             <AvatarFallback className="bg-futconnect-100 text-futconnect-600 text-3xl">
-                              {editedMember.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                              {editedMember?.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                             </AvatarFallback>
                           )}
                           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
@@ -724,7 +769,7 @@ const ListaSocios = () => {
                   {isEditMode ? (
                     <Input 
                       className="text-center font-bold text-xl mb-1" 
-                      value={editedMember.name}
+                      value={editedMember?.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
                     />
                   ) : (
@@ -733,30 +778,12 @@ const ListaSocios = () => {
                   {isEditMode ? (
                     <Input 
                       className="text-center text-gray-500 mb-1" 
-                      value={editedMember.nickname !== '-' ? editedMember.nickname : ''}
+                      value={editedMember?.nickname !== '-' ? editedMember.nickname : ''}
                       onChange={(e) => handleInputChange('nickname', e.target.value || '-')}
                       placeholder="Apelido"
                     />
                   ) : (
                     <p className="text-gray-500">{selectedMember.nickname !== '-' ? selectedMember.nickname : ''}</p>
-                  )}
-                  {isEditMode ? (
-                    <Select 
-                      value={editedMember.status} 
-                      onValueChange={(value) => handleInputChange('status', value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Ativo">Ativo</SelectItem>
-                        <SelectItem value="Suspenso">Suspenso</SelectItem>
-                        <SelectItem value="Inativo">Inativo</SelectItem>
-                        <SelectItem value="Sistema">Sistema</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <StatusBadge status={selectedMember.status} />
                   )}
                 </div>
                 
@@ -775,7 +802,7 @@ const ListaSocios = () => {
                         {isEditMode ? (
                           <Input 
                             className="h-8 text-sm" 
-                            value={editedMember.name}
+                            value={editedMember?.name}
                             onChange={(e) => handleInputChange('name', e.target.value)}
                           />
                         ) : (
@@ -788,7 +815,7 @@ const ListaSocios = () => {
                         {isEditMode ? (
                           <Input 
                             className="h-8 text-sm" 
-                            value={editedMember.nickname !== '-' ? editedMember.nickname : ''}
+                            value={editedMember?.nickname !== '-' ? editedMember.nickname : ''}
                             onChange={(e) => handleInputChange('nickname', e.target.value || '-')}
                           />
                         ) : (
@@ -800,7 +827,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Data de Nascimento:</span>
                         {isEditMode ? (
                           <DateInput 
-                            value={editedMember.birthDate}
+                            value={editedMember?.birthDate}
                             onChange={date => handleInputChange('birthDate', date)}
                             placeholder="DD/MM/AAAA"
                             className="h-8 text-sm"
@@ -818,7 +845,7 @@ const ListaSocios = () => {
                           <div className="flex flex-wrap gap-2">
                             {['Goleiro', 'Defensor', 'Meio', 'Atacante'].map(position => {
                               const positionKey = position.toLowerCase();
-                              const isSelected = editedMember.positions?.includes(positionKey);
+                              const isSelected = editedMember?.positions?.includes(positionKey);
                               
                               return (
                                 <Button
@@ -876,7 +903,7 @@ const ListaSocios = () => {
                         {isEditMode ? (
                           <Input 
                             className="h-8 text-sm" 
-                            value={editedMember.email}
+                            value={editedMember?.email}
                             onChange={(e) => handleInputChange('email', e.target.value)}
                             type="email"
                           />
@@ -890,7 +917,7 @@ const ListaSocios = () => {
                         {isEditMode ? (
                           <Input 
                             className="h-8 text-sm" 
-                            value={editedMember.phone !== '-' ? editedMember.phone : ''}
+                            value={editedMember?.phone !== '-' ? editedMember.phone : ''}
                             onChange={(e) => handleInputChange('phone', e.target.value || '-')}
                           />
                         ) : (
@@ -912,7 +939,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Categoria:</span>
                         {isEditMode ? (
                           <Select 
-                            value={editedMember.category} 
+                            value={editedMember?.category} 
                             onValueChange={(value) => handleInputChange('category', value)}
                           >
                             <SelectTrigger className="h-8 text-sm">
@@ -933,7 +960,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Data de Cadastro:</span>
                         {isEditMode ? (
                           <DateInput 
-                            value={editedMember.registrationDate} 
+                            value={editedMember?.registrationDate} 
                             onChange={(date) => handleInputChange('registrationDate', date)}
                             placeholder="DD/MM/AAAA"
                             className="h-8"
@@ -949,7 +976,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Início de Pagamento:</span>
                         {isEditMode ? (
                           <DateInput 
-                            value={editedMember.paymentStartDate} 
+                            value={editedMember?.paymentStartDate} 
                             onChange={(date) => handleInputChange('paymentStartDate', date)}
                             placeholder="DD/MM/AAAA"
                             className="h-8"
@@ -962,10 +989,26 @@ const ListaSocios = () => {
                       </div>
                       
                       <div className="grid grid-cols-2">
+                        <span className="text-sm text-gray-500">Data de Saída:</span>
+                        {isEditMode ? (
+                          <DateInput 
+                            value={editedMember?.departureDate} 
+                            onChange={(date) => handleInputChange('departureDate', date)}
+                            placeholder="DD/MM/AAAA"
+                            className="h-8"
+                          />
+                        ) : (
+                          <span className="text-sm font-medium">
+                            {formatDisplayDate(selectedMember.departureDate)}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="grid grid-cols-2">
                         <span className="text-sm text-gray-500">Status:</span>
                         {isEditMode ? (
                           <Select 
-                            value={editedMember.status} 
+                            value={editedMember?.status} 
                             onValueChange={(value) => handleInputChange('status', value)}
                           >
                             <SelectTrigger className="h-8 text-sm">
@@ -989,7 +1032,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Padrinho:</span>
                         {isEditMode ? (
                           <Select 
-                            value={editedMember.sponsorId || "none"} 
+                            value={editedMember?.sponsorId || "none"} 
                             onValueChange={(value) => handleInputChange('sponsorId', value === "none" ? null : value)}
                           >
                             <SelectTrigger className="h-8 text-sm">
@@ -998,7 +1041,7 @@ const ListaSocios = () => {
                             <SelectContent>
                               <SelectItem value="none">Nenhum</SelectItem>
                               {availableSponsors
-                                .filter(sponsor => sponsor.id !== editedMember.id) // Can't sponsor self
+                                .filter(sponsor => sponsor.id !== editedMember?.id) // Can't sponsor self
                                 .map(sponsor => (
                                   <SelectItem key={sponsor.id} value={sponsor.id}>
                                     {sponsor.nickname || sponsor.name}

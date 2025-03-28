@@ -7,9 +7,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MemberForm } from './MemberForm';
+import { DepartureDateField } from './DepartureDateField';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { useForm } from 'react-hook-form'; // Import useForm hook
 
 interface MemberFormModalProps {
   isOpen: boolean;
@@ -17,6 +20,10 @@ interface MemberFormModalProps {
   isEditing?: boolean;
   isViewOnly?: boolean;
   defaultValues?: any;
+}
+
+interface DepartureDateFormValues {
+  departureDate: Date | null;
 }
 
 export function MemberFormModal({ 
@@ -29,6 +36,19 @@ export function MemberFormModal({
   const { user } = useAuth();
   const { toast } = useToast();
   const [clubMembers, setClubMembers] = useState<any[]>([]);
+  const [departureDate, setDepartureDate] = useState<Date | null>(null);
+  
+  // Create form instance for departure date
+  const departureDateForm = useForm<DepartureDateFormValues>({
+    defaultValues: {
+      departureDate: departureDate
+    }
+  });
+  
+  // Update form value when departureDate changes
+  useEffect(() => {
+    departureDateForm.setValue('departureDate', departureDate);
+  }, [departureDate]);
   
   // Fetch club members for sponsor dropdown
   useEffect(() => {
@@ -36,6 +56,17 @@ export function MemberFormModal({
       fetchClubMembers();
     }
   }, [isOpen, user?.activeClub?.id]);
+
+  // Parse departure_date from defaultValues
+  useEffect(() => {
+    if (defaultValues?.departure_date) {
+      // Parse YYYY-MM-DD to Date object without timezone issues
+      const [year, month, day] = defaultValues.departure_date.split('-').map(Number);
+      setDepartureDate(new Date(year, month - 1, day));
+    } else {
+      setDepartureDate(null);
+    }
+  }, [defaultValues?.departure_date]);
   
   const fetchClubMembers = async () => {
     try {
@@ -95,7 +126,8 @@ export function MemberFormModal({
         payment_start_date: formatDateForDB(data.paymentStartDate),
         status: data.status,
         sponsor_id: data.sponsorId || null,
-        positions: data.positions || []
+        positions: data.positions || [],
+        departure_date: formatDateForDB(departureDate)
       };
 
       console.log('Member data for Supabase:', memberData);
@@ -188,14 +220,29 @@ export function MemberFormModal({
           </DialogDescription>
         </DialogHeader>
         
-        <MemberForm 
-          defaultValues={defaultValues}
-          onSave={handleSave}
-          onCancel={handleCloseModal} // Utiliza a função atualizada para fechar o modal
-          isEditing={isEditing}
-          isViewOnly={isViewOnly}
-          clubMembers={clubMembers}
-        />
+        <div className="space-y-6">
+          <MemberForm 
+            defaultValues={defaultValues}
+            onSave={handleSave}
+            onCancel={handleCloseModal}
+            isEditing={isEditing}
+            isViewOnly={isViewOnly}
+            clubMembers={clubMembers}
+          />
+          
+          {/* Departure Date Field - only show when editing */}
+          {isEditing && (
+            <div className="mt-6 border-t pt-6">
+              <h3 className="text-lg font-medium mb-4">Data de Saída</h3>
+              <DepartureDateField
+                form={departureDateForm}
+                isViewOnly={isViewOnly}
+                defaultValue={departureDate}
+                onChange={setDepartureDate}
+              />
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
