@@ -62,7 +62,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
   const isMobile = useIsMobile();
   
   // Verifica se o jogo está agendado
-  const canUpdateTeams = gameData.status === 'Agendado';
+  const canUpdateTeams = gameData.status.toLowerCase() === 'agendado';
   
   // Format date for display
   const formattedDate = new Date(gameData.date).toLocaleDateString('pt-BR', {
@@ -268,7 +268,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                  (teamName === 'Time Verde' && config.team_name === 'green')
       );
       
-      if (!teamConfig && teamName !== '') { // Permite teamName vazio apenas se o jogo estiver agendado
+      if (!teamConfig && teamName !== 'unassigned') { // Permite teamName vazio apenas se o jogo estiver agendado
         console.error(`Configuração do time não encontrada: ${teamName}`);
         toast({
           title: "Erro ao atribuir jogador",
@@ -298,7 +298,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
       
       if (existingMember) {
         // Delete existing team assignment only if assigning to a new team
-        if (teamName !== '') {
+        if (teamName !== 'unassigned') {
           const { error: deleteError } = await supabase
             .from('team_members')
             .delete()
@@ -312,7 +312,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
       }
       
       // Insert a new entry only if assigning to a team (not removing)
-      if (teamName !== '') {
+      if (teamName !== 'unassigned') {
         const { data: newTeamMember, error: insertError } = await supabase
           .from('team_members')
           .insert({
@@ -331,14 +331,14 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
       setPlayersWithTeam(prev => 
         prev.map(p => 
           p.id === playerId 
-            ? { ...p, team: teamName === '' ? undefined : teamName }
+            ? { ...p, team: teamName === 'unassigned' ? undefined : teamName }
             : p
         )
       );
       
       toast({
-        title: teamName === '' ? "Jogador removido do time" : "Time atualizado",
-        description: teamName === '' 
+        title: teamName === 'unassigned' ? "Jogador removido do time" : "Time atualizado",
+        description: teamName === 'unassigned' 
           ? "O jogador foi removido do time com sucesso"
           : "O jogador foi atribuído ao time com sucesso",
       });
@@ -543,7 +543,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                       </div>
                     </SelectItem>
                   ))}
-                  {canUpdateTeams && <SelectItem value="">Sem time</SelectItem>}
+                  {canUpdateTeams && <SelectItem value="unassigned">Sem time</SelectItem>}
                 </SelectContent>
               </Select>
             ) : (

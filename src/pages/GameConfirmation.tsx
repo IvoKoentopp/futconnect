@@ -125,7 +125,7 @@ const GameConfirmation = () => {
       
       // Redirect after short delay to allow toast to be seen
       setTimeout(() => {
-        navigate('/confirmation-success');
+        navigate(`/confirmation-success?gameId=${gameId}`);
       }, 2000);
       
     } catch (err: any) {

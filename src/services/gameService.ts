@@ -19,7 +19,7 @@ export const gameService = {
     const gameIds = games.map(game => game.id);
     const { data: participants, error: participantsError } = await supabase
       .from('game_participants')
-      .select('*')
+      .select('*, members(id, nickname)')
       .in('game_id', gameIds);
 
     if (participantsError) {
@@ -34,13 +34,22 @@ export const gameService = {
       // Ensure status is one of the expected string literals
       const status = validateGameStatus(game.status);
       
+      // Get confirmed players with their nicknames
+      const confirmedPlayers = gameParticipants
+        .filter(p => p.status === 'confirmed')
+        .map(p => ({
+          id: p.member_id,
+          nickname: p.members?.nickname || 'Unknown'
+        }));
+      
       return {
         ...game,
         status,
         participants: {
           confirmed: gameParticipants.filter(p => p.status === 'confirmed').length,
           declined: gameParticipants.filter(p => p.status === 'declined').length,
-          unconfirmed: gameParticipants.filter(p => p.status === 'unconfirmed').length
+          unconfirmed: gameParticipants.filter(p => p.status === 'unconfirmed').length,
+          confirmed_players: confirmedPlayers
         }
       } as GameWithParticipants;
     });

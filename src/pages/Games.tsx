@@ -38,6 +38,7 @@ import { gameService } from '@/services/gameService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { GameStatisticsModal } from '@/components/GameStatisticsModal';
+import TeamFormationModal from '@/components/TeamFormationModal';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 // Status badge component
@@ -828,8 +829,13 @@ const Games = () => {
             setSelectedGameForConfirmation(null);
           }}
           gameId={selectedGameForConfirmation.id}
+          userId={user.id}
           gameDate={selectedGameForConfirmation.date}
           gameStatus={selectedGameForConfirmation.status === 'scheduled' ? 'Agendado' : selectedGameForConfirmation.status === 'completed' ? 'Realizado' : 'Cancelado'}
+          onConfirmation={() => {
+            // Recarrega os jogos após confirmação
+            queryClient.invalidateQueries({ queryKey: ['games'] });
+          }}
         />
       )}
 

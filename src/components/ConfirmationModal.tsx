@@ -19,28 +19,150 @@ interface Member {
   status: 'confirmed' | 'declined' | 'unconfirmed';
 }
 
+interface Game {
+  id: string;
+  title: string;
+  location: string;
+  date: string;
+  status: string;
+  club_id: string;
+}
+
 interface ConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   gameId: string;
+  userId: string;
+  gameStatus: string;
+  onConfirmation?: () => void;
   gameDate?: string;
-  gameStatus?: string;
 }
 
-const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: ConfirmationModalProps) => {
+export const handleShareParticipants = async (gameId: string) => {
+  try {
+    console.log('Iniciando compartilhamento de participantes para o jogo:', gameId);
+
+    // Busca detalhes do jogo
+    const { data: gameData, error: gameError } = await supabase
+      .from('games')
+      .select('date, location, title, status, club_id')
+      .eq('id', gameId)
+      .single();
+
+    if (gameError) {
+      console.error('Erro ao buscar detalhes do jogo:', gameError);
+      throw gameError;
+    }
+
+    const game = gameData as Game;
+    console.log('Detalhes do jogo:', game);
+
+    // Busca todos os membros ativos do clube
+    const { data: allMembers, error: membersError } = await supabase
+      .from('members')
+      .select('id, nickname, name')
+      .eq('club_id', game.club_id)
+      .in('status', ['Ativo', 'Sistema']);
+
+    if (membersError) {
+      console.error('Erro ao buscar membros:', membersError);
+      throw membersError;
+    }
+
+    console.log('Membros ativos encontrados:', allMembers);
+
+    // Busca os participantes do jogo
+    const { data: participants, error: participantsError } = await supabase
+      .from('game_participants')
+      .select('member_id, status, members(nickname, name)')
+      .eq('game_id', gameId);
+
+    if (participantsError) {
+      console.error('Erro ao buscar participantes:', participantsError);
+      throw participantsError;
+    }
+
+    console.log('Participantes encontrados:', participants);
+
+    // Cria um Map dos participantes para fácil acesso
+    const participantsMap = new Map(
+      participants.map(p => [p.member_id, p])
+    );
+
+    // Filtra os membros por status
+    const confirmedParticipants = participants
+      .filter(p => p.status === 'confirmed')
+      .map(p => p.members?.nickname || p.members?.name || 'Sem apelido');
+
+    const declinedParticipants = participants
+      .filter(p => p.status === 'declined')
+      .map(p => p.members?.nickname || p.members?.name || 'Sem apelido');
+
+    // Identifica os membros pendentes (que não responderam)
+    const pendingParticipants = allMembers
+      .filter(member => !participantsMap.has(member.id))
+      .map(member => member.nickname || member.name || 'Sem apelido');
+
+    console.log('Confirmados:', confirmedParticipants);
+    console.log('Recusados:', declinedParticipants);
+    console.log('Pendentes:', pendingParticipants);
+
+    const formattedDate = game.date
+      ? new Date(game.date).toLocaleDateString('pt-BR')
+      : 'Data não informada';
+
+    const formattedTime = game.date
+      ? new Date(game.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      : '';
+
+    const confirmedText = confirmedParticipants.length > 0
+      ? `Confirmados (${confirmedParticipants.length}): ${confirmedParticipants.join(', ')}`
+      : 'Nenhum jogador confirmado';
+
+    const declinedText = declinedParticipants.length > 0
+      ? `Não vão jogar (${declinedParticipants.length}): ${declinedParticipants.join(', ')}`
+      : 'Nenhum jogador recusou';
+
+    const pendingText = pendingParticipants.length > 0
+      ? `Não informaram (${pendingParticipants.length}): ${pendingParticipants.join(', ')}`
+      : 'Todos os jogadores informaram';
+
+    const message = encodeURIComponent(
+      `📋 *${game.title || 'Jogo'} - ${formattedDate} às ${formattedTime}*\n` +
+      `📍 *Local:* ${game.location}\n\n` +
+      `${confirmedText}\n\n` +
+      `${declinedText}\n\n` +
+      `${pendingText}`
+    );
+
+    console.log('Mensagem formatada:', decodeURIComponent(message));
+
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+
+    console.log('WhatsApp aberto com sucesso');
+  } catch (error) {
+    console.error('Erro detalhado ao compartilhar participantes:', error);
+    throw error;
+  }
+};
+
+const ConfirmationModal = ({ isOpen, onClose, gameId, userId, gameStatus, onConfirmation, gameDate }: ConfirmationModalProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showTeamFormation, setShowTeamFormation] = useState(false);
+  const [gameTitle, setGameTitle] = useState<string>('');
+  const [gameLocation, setGameLocation] = useState<string>('');
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<'confirmed' | 'declined' | 'unconfirmed'>('confirmed');
-  
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isDeclining, setIsDeclining] = useState(false);
+
   const confirmed = members.filter(m => m.status === 'confirmed');
   const declined = members.filter(m => m.status === 'declined');
   const unconfirmed = members.filter(m => m.status === 'unconfirmed');
 
-  // Verifica se o jogo está agendado
   const canUpdateParticipation = gameStatus === 'Agendado';
 
   const handleConfirm = async (memberId: string) => {
@@ -53,59 +175,69 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
       return;
     }
 
+    setIsConfirming(true);
     try {
-      // Check if there's already an entry for this member in this game
-      const { data: existingEntry } = await supabase
+      console.log('Iniciando confirmação para o jogo:', gameId);
+
+      const { data: existingEntry, error: checkError } = await supabase
         .from('game_participants')
-        .select('id')
+        .select('*')
         .eq('game_id', gameId)
         .eq('member_id', memberId)
-        .single();
-      
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Erro ao verificar participação existente:', checkError);
+        throw checkError;
+      }
+
+      console.log('Participação existente:', existingEntry);
+
       if (existingEntry) {
-        // Update existing entry
-        const { error } = await supabase
+        const { error: updateError } = await supabase
           .from('game_participants')
           .update({ status: 'confirmed' })
-          .eq('game_id', gameId)
-          .eq('member_id', memberId);
-        
-        if (error) throw error;
+          .eq('id', existingEntry.id);
+
+        if (updateError) {
+          console.error('Erro ao atualizar participação:', updateError);
+          throw updateError;
+        }
       } else {
-        // Create new entry
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('game_participants')
-          .insert([
-            { 
-              game_id: gameId, 
-              member_id: memberId, 
-              status: 'confirmed' 
-            }
-          ]);
-        
-        if (error) throw error;
+          .insert({
+            game_id: gameId,
+            member_id: memberId,
+            status: 'confirmed'
+          });
+
+        if (insertError) {
+          console.error('Erro ao criar participação:', insertError);
+          throw insertError;
+        }
       }
-      
-      // Update local state
-      setMembers(prev => 
-        prev.map(member => 
-          member.id === memberId 
-            ? { ...member, status: 'confirmed' } 
-            : member
-        )
-      );
-      
+
       toast({
         title: "Confirmação registrada",
         description: "O jogador foi adicionado à lista de confirmados",
       });
+
+      // Atualiza o estado e notifica o componente pai
+      setMembers(prev => prev.map(m => 
+        m.id === memberId ? { ...m, status: 'confirmed' } : m
+      ));
+      onConfirmation?.();
+
     } catch (error: any) {
-      console.error('Error confirming participation:', error);
+      console.error('Erro detalhado ao confirmar participação:', error);
       toast({
         variant: "destructive",
         title: "Erro ao confirmar participação",
         description: error.message || "Não foi possível confirmar a participação",
       });
+    } finally {
+      setIsConfirming(false);
     }
   };
 
@@ -119,59 +251,69 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
       return;
     }
 
+    setIsDeclining(true);
     try {
-      // Check if there's already an entry for this member in this game
-      const { data: existingEntry } = await supabase
+      console.log('Iniciando recusa para o jogo:', gameId);
+
+      const { data: existingParticipation, error: checkError } = await supabase
         .from('game_participants')
-        .select('id')
+        .select('*')
         .eq('game_id', gameId)
         .eq('member_id', memberId)
-        .single();
-      
-      if (existingEntry) {
-        // Update existing entry
-        const { error } = await supabase
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Erro ao verificar participação existente:', checkError);
+        throw checkError;
+      }
+
+      console.log('Participação existente:', existingParticipation);
+
+      if (existingParticipation) {
+        const { error: updateError } = await supabase
           .from('game_participants')
           .update({ status: 'declined' })
-          .eq('game_id', gameId)
-          .eq('member_id', memberId);
-        
-        if (error) throw error;
+          .eq('id', existingParticipation.id);
+
+        if (updateError) {
+          console.error('Erro ao atualizar participação:', updateError);
+          throw updateError;
+        }
       } else {
-        // Create new entry
-        const { error } = await supabase
+        const { error: insertError } = await supabase
           .from('game_participants')
-          .insert([
-            { 
-              game_id: gameId, 
-              member_id: memberId, 
-              status: 'declined' 
-            }
-          ]);
-        
-        if (error) throw error;
+          .insert({
+            game_id: gameId,
+            member_id: memberId,
+            status: 'declined'
+          });
+
+        if (insertError) {
+          console.error('Erro ao criar participação:', insertError);
+          throw insertError;
+        }
       }
-      
-      // Update local state
-      setMembers(prev => 
-        prev.map(member => 
-          member.id === memberId 
-            ? { ...member, status: 'declined' } 
-            : member
-        )
-      );
-      
+
       toast({
-        title: "Recusa registrada",
+        title: "Ausência registrada",
         description: "O jogador foi adicionado à lista de ausentes",
       });
+
+      // Atualiza o estado e notifica o componente pai
+      setMembers(prev => prev.map(m => 
+        m.id === memberId ? { ...m, status: 'declined' } : m
+      ));
+      onConfirmation?.();
+
     } catch (error: any) {
-      console.error('Error declining participation:', error);
+      console.error('Erro detalhado ao recusar participação:', error);
       toast({
         variant: "destructive",
         title: "Erro ao recusar participação",
         description: error.message || "Não foi possível recusar a participação",
       });
+    } finally {
+      setIsDeclining(false);
     }
   };
 
@@ -184,15 +326,12 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
       });
       return;
     }
-    
-    console.log('Opening team formation with confirmed players:', confirmed.length);
-    console.log('Confirmed players:', confirmed);
+
     setShowTeamFormation(true);
   };
 
   const handleShareList = async () => {
     try {
-      // Get actual member names/nicknames for the list
       const confirmedNames = confirmed.map(m => m.nickname).join(', ');
       const declinedNames = declined.map(m => m.nickname).join(', ');
       
@@ -227,12 +366,21 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
     }
   };
 
-  // Format date without timezone issues
+  const handleShare = async () => {
+    try {
+      await handleShareParticipants(gameId);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Erro ao compartilhar",
+        description: "Não foi possível compartilhar a lista de participantes",
+      });
+    }
+  };
+
   const formattedDate = gameDate 
     ? (() => {
-        // Parse the date properly without timezone adjustments
         const [year, month, day] = gameDate.split('T')[0].split('-').map(Number);
-        // Create a new date with just the year, month, day components
         return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
       })()
     : 'Data não especificada';
@@ -241,7 +389,6 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
     setShowTeamFormation(false);
   };
 
-  // Render a player card for mobile
   const renderPlayerCard = (member: Member, actionButton: React.ReactNode) => (
     <div key={member.id} className="flex items-center justify-between p-2 bg-white rounded-md shadow-sm mb-2">
       <span className="truncate max-w-[160px]">{member.nickname}</span>
@@ -252,12 +399,28 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
   useEffect(() => {
     if (!isOpen || !gameId || !user?.activeClub?.id) return;
     
+    const loadGameData = async () => {
+      try {
+        const { data: game, error } = await supabase
+          .from('games')
+          .select('title, location')
+          .eq('id', gameId)
+          .single();
+
+        if (error) throw error;
+
+        setGameTitle(game.title || '');
+        setGameLocation(game.location || '');
+      } catch (error) {
+        console.error('Error loading game data:', error);
+      }
+    };
+
     const fetchMembers = async () => {
       setLoading(true);
       try {
         console.log('Fetching members for game:', gameId, 'and club:', user.activeClub.id);
         
-        // Fetch all club members with status 'Ativo' or 'Sistema'
         const { data: membersData, error: membersError } = await supabase
           .from('members')
           .select('id, nickname')
@@ -267,7 +430,6 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
         if (membersError) throw membersError;
         console.log('Fetched members:', membersData?.length);
         
-        // Fetch existing participants for this game
         const { data: participantsData, error: participantsError } = await supabase
           .from('game_participants')
           .select('member_id, status')
@@ -276,13 +438,11 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
         if (participantsError) throw participantsError;
         console.log('Fetched participants:', participantsData?.length);
         
-        // Map existing participants
         const participantsMap = new Map();
         participantsData?.forEach(participant => {
           participantsMap.set(participant.member_id, participant.status);
         });
         
-        // Combine data and set default status as 'unconfirmed'
         const combinedMembers = membersData?.map(member => ({
           id: member.id,
           nickname: member.nickname || member.id,
@@ -305,6 +465,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
       }
     };
     
+    loadGameData();
     fetchMembers();
   }, [isOpen, gameId, user?.activeClub?.id, toast]);
 
@@ -352,9 +513,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
           ) : (
             <>
               {isMobile ? (
-                // Mobile layout
                 <div className="flex flex-col gap-4 mt-2">
-                  {/* Tabs for mobile view - now with click handlers */}
                   <div className="flex border-b">
                     <div 
                       className={`flex-1 text-center py-2 border-b-2 ${
@@ -397,9 +556,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
                     </div>
                   </div>
                   
-                  {/* Content for active tab - now renders different content based on activeTab */}
                   <div className="min-h-[300px] max-h-[50vh] overflow-y-auto p-1">
-                    {/* Confirmed players tab */}
                     {activeTab === 'confirmed' && (
                       <>
                         {confirmed.length > 0 ? (
@@ -426,7 +583,6 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
                       </>
                     )}
                     
-                    {/* Declined players tab */}
                     {activeTab === 'declined' && (
                       <>
                         {declined.length > 0 ? (
@@ -453,7 +609,6 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
                       </>
                     )}
                     
-                    {/* Unconfirmed players tab */}
                     {activeTab === 'unconfirmed' && (
                       <>
                         {unconfirmed.length > 0 ? (
@@ -493,9 +648,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
                   </div>
                 </div>
               ) : (
-                // Desktop layout
                 <div className="grid grid-cols-3 gap-4">
-                  {/* Confirmed Players */}
                   <div className="bg-futconnect-50 rounded-md p-4 border border-futconnect-200">
                     <div className="flex items-center mb-4 text-futconnect-700 font-medium">
                       <UserCheck className="mr-2 h-5 w-5" />
@@ -526,7 +679,6 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
                     </div>
                   </div>
                   
-                  {/* Declined Players */}
                   <div className="bg-accent/20 rounded-md p-4 border border-accent/30">
                     <div className="flex items-center mb-4 text-accent-foreground font-medium">
                       <UserX className="mr-2 h-5 w-5" />
@@ -557,7 +709,6 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
                     </div>
                   </div>
                   
-                  {/* Unconfirmed Players */}
                   <div className="bg-muted rounded-md p-4 border border-border">
                     <div className="flex items-center mb-4 text-muted-foreground font-medium">
                       <User className="mr-2 h-5 w-5" />
@@ -608,16 +759,16 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, gameDate, gameStatus }: Co
         </DialogContent>
       </Dialog>
 
-      {/* Team Formation Modal */}
       {showTeamFormation && (
         <TeamFormationModal
           isOpen={showTeamFormation}
           onClose={handleCloseTeamFormation}
           gameId={gameId}
           gameData={{
-            title: `Jogo de ${formattedDate}`,
-            location: "Local do jogo",
-            date: gameDate || new Date().toISOString()
+            title: gameTitle,
+            location: gameLocation,
+            date: gameDate || new Date().toISOString(),
+            status: gameStatus
           }}
           confirmedPlayers={confirmed}
         />

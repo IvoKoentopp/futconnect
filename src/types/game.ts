@@ -1,4 +1,3 @@
-
 export interface Game {
   id: string;
   title: string;
@@ -29,6 +28,10 @@ export interface GameWithParticipants extends Game {
     confirmed: number;
     declined: number;
     unconfirmed: number;
+    confirmed_players: Array<{
+      id: string;
+      nickname: string;
+    }>;
   };
 }
 

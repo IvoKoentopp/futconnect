@@ -1,10 +1,34 @@
-
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { handleShareParticipants } from '@/components/ConfirmationModal';
 
 const ConfirmationSuccess = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Pega o gameId da URL
+    const params = new URLSearchParams(location.search);
+    const gameId = params.get('gameId');
+
+    // Se tiver gameId, compartilha a lista automaticamente
+    if (gameId) {
+      handleShare(gameId);
+    }
+  }, [location]);
+
+  const handleShare = async (gameId: string) => {
+    try {
+      await handleShareParticipants(gameId);
+    } catch (error) {
+      console.error('Erro ao compartilhar participantes:', error);
+      toast.error('Não foi possível compartilhar a lista de participantes');
+    }
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
       <Card className="w-full max-w-md text-center">
