@@ -71,18 +71,17 @@ const memberFormSchema = z.object({
 
     try {
       const { data: auth } = await supabase.auth.getSession();
-      if (!auth?.session?.user) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Usuário não autenticado",
-        });
-        return;
+      const user = auth?.session?.user;
+      const activeClub = user?.user_metadata?.activeClub;
+
+      if (!user || !activeClub?.id) {
+        return; // Permite continuar sem validar duplicidade se não houver clube ativo
       }
 
       const { data, error } = await supabase
         .from('members')
         .select('id')
-        .eq('club_id', auth.session.user.user_metadata.activeClub.id)
+        .eq('club_id', activeClub.id)
         .eq('nickname', nickname)
         .maybeSingle();
 
@@ -103,10 +102,8 @@ const memberFormSchema = z.object({
       }
     } catch (error) {
       console.error('Error in nickname validation:', error);
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Erro ao validar apelido",
-      });
+      // Não bloqueia o formulário em caso de erro na validação
+      return;
     }
   }),
   email: z.string().email({
