@@ -45,6 +45,8 @@ const BankAccounts = () => {
   const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [canEdit, setCanEdit] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState<{id: string, name: string}[]>([]);
+  const [chartOfAccounts, setChartOfAccounts] = useState<{id: string, description: string}[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
   const { isClubAdmin } = useAuthorization();
@@ -264,6 +266,49 @@ const BankAccounts = () => {
       setTransactions([]);
     }
   }, [selectedAccountId, startDate, endDate]);
+
+  useEffect(() => {
+    const loadModalData = async () => {
+      if (!user?.activeClub?.id || !isTransactionModalOpen) return;
+      
+      try {
+        // Carregar contas bancárias
+        const { data: bankAccountsData, error: bankAccountsError } = await supabase
+          .from('bank_accounts')
+          .select('id, bank, branch')
+          .eq('club_id', user.activeClub.id);
+        
+        if (bankAccountsError) throw bankAccountsError;
+        
+        const formattedBankAccounts = bankAccountsData.map(acc => ({
+          id: acc.id,
+          name: `${acc.bank} - Ag. ${acc.branch}`
+        }));
+        
+        setBankAccounts(formattedBankAccounts);
+        
+        // Carregar plano de contas
+        const { data: chartAccountsData, error: chartAccountsError } = await supabase
+          .from('chart_of_accounts')
+          .select('id, description')
+          .eq('club_id', user.activeClub.id);
+        
+        if (chartAccountsError) throw chartAccountsError;
+        
+        setChartOfAccounts(chartAccountsData);
+      } catch (error) {
+        console.error('Erro ao carregar dados para o modal:', error);
+        toast({
+          variant: "destructive",
+          title: "Erro",
+          description: "Não foi possível carregar os dados necessários.",
+        });
+        setIsTransactionModalOpen(false);
+      }
+    };
+    
+    loadModalData();
+  }, [user?.activeClub?.id, isTransactionModalOpen]);
 
   const handleDelete = async (id: string) => {
     if (!canEdit) {
@@ -617,6 +662,8 @@ const BankAccounts = () => {
         onClose={() => setIsTransactionModalOpen(false)}
         onTransactionCreated={handleTransactionCreated}
         transactionToEdit={null}
+        bankAccounts={bankAccounts}
+        chartOfAccounts={chartOfAccounts}
       />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
