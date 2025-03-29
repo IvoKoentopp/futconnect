@@ -7,7 +7,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { GameStatisticsModal } from './GameStatisticsModal';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ConfirmedPlayer {
   id: string;
@@ -523,29 +528,33 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
         ) : (
           <div className="flex items-center">
             {teamConfigurations.length > 0 ? (
-              <Select
-                onValueChange={(value) => handleAssignToTeam(player.id, value)}
-                disabled={!canUpdateTeams || isSaving}
-              >
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue placeholder="Selecionar time" />
-                </SelectTrigger>
-                <SelectContent>
+              <TooltipProvider>
+                <div className="flex gap-1">
                   {teamConfigurations.map((team) => (
-                    <SelectItem key={team.id} value={team.team_name}>
-                      <div className="flex items-center">
-                        <div 
-                          className="w-3 h-3 rounded-full mr-2" 
-                          style={{ backgroundColor: team.team_color }}
-                        ></div>
-                        {team.team_name === 'white' ? 'Time Branco' : 
-                         team.team_name === 'green' ? 'Time Verde' : team.team_name}
-                      </div>
-                    </SelectItem>
+                    <Tooltip key={team.id}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8 p-0 hover:opacity-80"
+                          onClick={() => handleAssignToTeam(player.id, team.team_name)}
+                          disabled={!canUpdateTeams || isSaving}
+                          style={{ 
+                            backgroundColor: team.team_color,
+                            border: team.team_color === '#ffffff' ? '1px solid #e5e7eb' : 'none'
+                          }}
+                        >
+                          <UserPlus className={`h-4 w-4 ${team.team_color === '#ffffff' ? 'text-gray-600' : 'text-white'}`} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Adicionar ao {team.team_name === 'white' ? 'Time Branco' : 
+                           team.team_name === 'green' ? 'Time Verde' : team.team_name}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
-                  {canUpdateTeams && <SelectItem value="unassigned">Sem time</SelectItem>}
-                </SelectContent>
-              </Select>
+                </div>
+              </TooltipProvider>
             ) : (
               <p className="text-xs text-gray-500">Carregando times...</p>
             )}

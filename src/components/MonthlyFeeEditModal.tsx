@@ -60,11 +60,10 @@ export function MonthlyFeeEditModal({
     if (isOpen && fee) {
       setAmount(fee.amount);
       
-      // Parse date without timezone issues
+      // Converter YYYY-MM-DD para Date sem considerar timezone
       if (fee.dueDate) {
         const [year, month, day] = fee.dueDate.split('T')[0].split('-').map(Number);
-        // Create date with the exact day without timezone adjustments
-        const dueDateObj = new Date(Date.UTC(year, month - 1, day));
+        const dueDateObj = new Date(year, month - 1, day);
         setDueDate(dueDateObj);
       } else {
         setDueDate(new Date());
@@ -77,11 +76,11 @@ export function MonthlyFeeEditModal({
     
     setIsSubmitting(true);
     try {
-      // Format the date as YYYY-MM-DDT00:00:00.000Z
-      const year = dueDate.getUTCFullYear();
-      const month = String(dueDate.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(dueDate.getUTCDate()).padStart(2, '0');
-      const dateString = `${year}-${month}-${day}T00:00:00.000Z`;
+      // Formatar a data como YYYY-MM-DD
+      const year = dueDate.getFullYear();
+      const month = String(dueDate.getMonth() + 1).padStart(2, '0');
+      const day = String(dueDate.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
       
       const updatedFee: MonthlyFee = {
         ...fee,
@@ -121,7 +120,7 @@ export function MonthlyFeeEditModal({
     if (!dateString) return '';
     
     const [year, month, day] = dateString.split('T')[0].split('-').map(Number);
-    const date = new Date(Date.UTC(year, month - 1, day));
+    const date = new Date(year, month - 1, day);
     
     return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };

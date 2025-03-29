@@ -255,6 +255,35 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, userId, gameStatus, onConf
     try {
       console.log('Iniciando recusa para o jogo:', gameId);
 
+      // 1. Primeiro encontra a formação de time ativa
+      const { data: teamFormations, error: teamFormationsError } = await supabase
+        .from('team_formations')
+        .select('id')
+        .eq('game_id', gameId)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (teamFormationsError) {
+        console.error('Erro ao buscar formação de time:', teamFormationsError);
+        throw teamFormationsError;
+      }
+
+      // 2. Se houver uma formação ativa, remove o jogador dela
+      if (teamFormations && teamFormations.length > 0) {
+        const teamFormationId = teamFormations[0].id;
+        const { error: deleteError } = await supabase
+          .from('team_members')
+          .delete()
+          .eq('team_formation_id', teamFormationId)
+          .eq('member_id', memberId);
+
+        if (deleteError) {
+          console.error('Erro ao remover jogador do time:', deleteError);
+          throw deleteError;
+        }
+      }
+
+      // 3. Atualiza o status do participante
       const { data: existingParticipation, error: checkError } = await supabase
         .from('game_participants')
         .select('*')
@@ -296,7 +325,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, userId, gameStatus, onConf
 
       toast({
         title: "Ausência registrada",
-        description: "O jogador foi adicionado à lista de ausentes",
+        description: "O jogador foi removido do time e adicionado à lista de ausentes",
       });
 
       // Atualiza o estado e notifica o componente pai
