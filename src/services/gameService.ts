@@ -118,6 +118,22 @@ export const gameService = {
   },
 
   async deleteGame(gameId: string): Promise<void> {
+    // Verificar o status do jogo antes de deletar
+    const { data: game, error: fetchError } = await supabase
+      .from('games')
+      .select('status')
+      .eq('id', gameId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching game:', fetchError);
+      throw fetchError;
+    }
+
+    if (game.status !== 'scheduled') {
+      throw new Error('Apenas jogos com status Agendado podem ser deletados.');
+    }
+
     const { error } = await supabase
       .from('games')
       .delete()
