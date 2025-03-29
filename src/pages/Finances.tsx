@@ -247,6 +247,35 @@ const Finances = () => {
     if (!deleteTransactionId || !user?.activeClub?.id || !canEdit) return;
     
     try {
+      // Primeiro, verificar se a transação está vinculada a uma mensalidade
+      const { data: monthlyFee, error: monthlyFeeError } = await supabase
+        .from('monthly_fees')
+        .select('id')
+        .eq('transaction_id', deleteTransactionId)
+        .single();
+
+      if (monthlyFeeError && monthlyFeeError.code !== 'PGRST116') { // PGRST116 = not found
+        throw monthlyFeeError;
+      }
+
+      // Se houver uma mensalidade vinculada, atualizar seu status
+      if (monthlyFee) {
+        const { error: updateError } = await supabase
+          .from('monthly_fees')
+          .update({
+            status: 'pending',
+            payment_date: null,
+            payment_method: null,
+            bank_account_id: null,
+            transaction_id: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', monthlyFee.id);
+
+        if (updateError) throw updateError;
+      }
+
+      // Excluir a transação
       const { error } = await supabase
         .from('transactions')
         .delete()
@@ -257,7 +286,9 @@ const Finances = () => {
       
       toast({
         title: "Transação excluída com sucesso",
-        description: "A transação foi removida.",
+        description: monthlyFee 
+          ? "A transação foi removida e a mensalidade retornou ao status pendente."
+          : "A transação foi removida.",
       });
       
       fetchTransactions();
