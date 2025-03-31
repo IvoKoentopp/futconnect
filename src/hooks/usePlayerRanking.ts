@@ -11,7 +11,7 @@ export interface PlayerRanking {
   position: number;
 }
 
-export const usePlayerRanking = (clubId: string | undefined) => {
+export const usePlayerRanking = (clubId: string | undefined, selectedYear: string = "all") => {
   const [topPlayers, setTopPlayers] = useState<PlayerRanking[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -25,11 +25,9 @@ export const usePlayerRanking = (clubId: string | undefined) => {
 
       try {
         setIsLoading(true);
-        // Get current year
-        const currentYear = new Date().getFullYear().toString();
         
         // Fetch player stats from the game performance service
-        const playerStats = await gamePerformanceService.fetchPlayerStats(clubId, currentYear, 'all');
+        const playerStats = await gamePerformanceService.fetchPlayerStats(clubId, selectedYear, 'all');
         
         // Get member IDs to fetch their photos
         const memberIds = playerStats.map(player => player.id);
@@ -80,7 +78,7 @@ export const usePlayerRanking = (clubId: string | undefined) => {
     };
 
     fetchTopPlayers();
-  }, [clubId]);
+  }, [clubId, selectedYear]);
 
   return { topPlayers, isLoading, error };
 };

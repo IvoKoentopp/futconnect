@@ -10,7 +10,7 @@ export type TopHighlight = {
   position: number;
 };
 
-export const useTopHighlights = (clubId: string | undefined) => {
+export const useTopHighlights = (clubId: string | undefined, selectedYear: string = "all") => {
   const [topHighlights, setTopHighlights] = useState<TopHighlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -27,7 +27,22 @@ export const useTopHighlights = (clubId: string | undefined) => {
         setIsLoading(true);
         setError(null);
 
-        // Primeiro busca os jogos finalizados do clube
+        // Definir o período de busca baseado no ano selecionado
+        let startDate: string;
+        let endDate: string;
+        
+        if (selectedYear === "all") {
+          // Se for "all", usar o ano atual
+          const currentYear = new Date().getFullYear();
+          startDate = new Date(currentYear, 0, 1).toISOString();
+          endDate = new Date(currentYear + 1, 0, 1).toISOString();
+        } else {
+          // Se for um ano específico, usar o período daquele ano
+          startDate = new Date(parseInt(selectedYear), 0, 1).toISOString();
+          endDate = new Date(parseInt(selectedYear) + 1, 0, 1).toISOString();
+        }
+
+        // Primeiro busca os jogos finalizados do clube no período selecionado
         const { data: finishedGames, error: gamesError } = await supabase
           .from('game_voting_control')
           .select(`
@@ -39,7 +54,9 @@ export const useTopHighlights = (clubId: string | undefined) => {
             )
           `)
           .eq('is_finalized', true)
-          .eq('games.club_id', clubId);
+          .eq('games.club_id', clubId)
+          .gte('games.date', startDate)
+          .lt('games.date', endDate);
 
         if (gamesError) throw gamesError;
 
@@ -106,15 +123,15 @@ export const useTopHighlights = (clubId: string | undefined) => {
 
         setTopHighlights(sortedHighlights);
       } catch (err) {
-        console.error('Error fetching highlights:', err);
-        setError(err instanceof Error ? err : new Error('Erro ao buscar destaques'));
+        console.error('Error fetching top highlights:', err);
+        setError(err instanceof Error ? err : new Error('Error fetching top highlights'));
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchTopHighlights();
-  }, [clubId]);
+  }, [clubId, selectedYear]);
 
   return { topHighlights, isLoading, error };
 };

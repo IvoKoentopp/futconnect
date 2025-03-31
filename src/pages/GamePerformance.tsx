@@ -734,7 +734,7 @@ const GamePerformance = () => {
                                 )}
                               </TableCell>
                               <TableCell className="font-medium">{player.name}</TableCell>
-                              <TableCell className="text-center font-semibold">{player.points.toFixed(0)}</TableCell>
+                              <TableCell className="text-center font-semibold">{player.points.toFixed(2)}</TableCell>
                               <TableCell className="text-center">
                                 {player.participationRate ? `${player.participationRate.toFixed(2)}%` : '0.00%'}
                               </TableCell>

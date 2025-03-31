@@ -503,8 +503,11 @@ export const gamePerformanceService = {
           ? (member.games / totalGames) * 100 
           : 0;
         
+        // Fix participation rate to 1 decimal place
+        const fixedParticipationRate = parseFloat(participationRate.toFixed(1));
+        
         // Save the participation rate
-        member.participationRate = participationRate;
+        member.participationRate = fixedParticipationRate;
         
         // Calculate months of membership up to the reference date
         const registrationDate = new Date(activeMembers.find(m => m.id === memberId)!.registration_date);
@@ -513,17 +516,17 @@ export const gamePerformanceService = {
         
         // Log calculation components for debugging
         console.log('Calculation components:', {
-          participationRate,
-          participationValue: Math.round(participationRate * 100000),
+          participationRate: fixedParticipationRate,
+          participationValue: Math.round(fixedParticipationRate * 1000),
           membershipValue: monthDiff * 10,
           ageValue: member.age,
-          totalValue: Math.round(participationRate * 100000) + (monthDiff * 10) + member.age,
-          scoreValue: (Math.round(participationRate * 100000) + (monthDiff * 10) + member.age) / 1000
+          totalValue: Math.round(fixedParticipationRate * 1000) + (monthDiff * 10) + member.age,
+          scoreValue: (Math.round(fixedParticipationRate * 1000) + (monthDiff * 10) + member.age) / 1000
         });
         
-        // Calculate score using same formula as in useMemberGames.ts:
-        // (participationRate * 100000 + monthDiff * 10 + age) / 1000
-        const participationValue = Math.round(participationRate * 100000);
+        // Calculate score using formula:
+        // (participationRate * 1000 + monthDiff * 10 + age) / 1000
+        const participationValue = Math.round(fixedParticipationRate * 1000);
         const membershipValue = monthDiff * 10;
         const ageValue = member.age;
         

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -10,7 +9,7 @@ type GameSummaryStats = {
   error: Error | null;
 };
 
-export const useGameSummary = (clubId: string | undefined): GameSummaryStats => {
+export const useGameSummary = (clubId: string | undefined, selectedYear: string = "all"): GameSummaryStats => {
   const [averageGoalsPerGame, setAverageGoalsPerGame] = useState<number>(0);
   const [averagePlayersPerGame, setAveragePlayersPerGame] = useState<number>(0);
   const [completionRate, setCompletionRate] = useState<number>(0);
@@ -27,16 +26,28 @@ export const useGameSummary = (clubId: string | undefined): GameSummaryStats => 
       try {
         setIsLoading(true);
         
-        // Get current year
-        const currentYear = new Date().getFullYear();
-        const startOfYear = new Date(currentYear, 0, 1).toISOString();
+        // Definir o período de busca baseado no ano selecionado
+        let startDate: string;
+        let endDate: string;
         
-        // Fetch all games in the current year
+        if (selectedYear === "all") {
+          // Se for "all", usar o ano atual
+          const currentYear = new Date().getFullYear();
+          startDate = new Date(currentYear, 0, 1).toISOString();
+          endDate = new Date(currentYear + 1, 0, 1).toISOString();
+        } else {
+          // Se for um ano específico, usar o período daquele ano
+          startDate = new Date(parseInt(selectedYear), 0, 1).toISOString();
+          endDate = new Date(parseInt(selectedYear) + 1, 0, 1).toISOString();
+        }
+        
+        // Fetch all games in the selected period
         const { data: games, error: gamesError } = await supabase
           .from('games')
           .select('id, status')
           .eq('club_id', clubId)
-          .gte('date', startOfYear);
+          .gte('date', startDate)
+          .lt('date', endDate);
         
         if (gamesError) throw gamesError;
 
@@ -49,7 +60,7 @@ export const useGameSummary = (clubId: string | undefined): GameSummaryStats => 
         const totalGames = completedGames + canceledGames;
         
         const calculatedCompletionRate = totalGames > 0 
-          ? (completedGames / totalGames) * 100 
+          ? Number((completedGames / totalGames * 100).toFixed(2))
           : 0;
         
         // Get completed game IDs for further calculations
@@ -83,7 +94,7 @@ export const useGameSummary = (clubId: string | undefined): GameSummaryStats => 
         
         // Calculate average goals per game using games with events count
         const calculatedAverageGoals = gamesWithEventsCount > 0 
-          ? totalGoals / gamesWithEventsCount 
+          ? Number((totalGoals / gamesWithEventsCount).toFixed(2))
           : 0;
         
         // Fetch participants for completed games
@@ -99,49 +110,46 @@ export const useGameSummary = (clubId: string | undefined): GameSummaryStats => 
         const memberIds = [...new Set(participants.map(p => p.member_id))];
         
         if (memberIds.length === 0) {
-          setAverageGoalsPerGame(parseFloat(calculatedAverageGoals.toFixed(1)));
+          setAverageGoalsPerGame(calculatedAverageGoals);
           setAveragePlayersPerGame(0);
-          setCompletionRate(parseFloat(calculatedCompletionRate.toFixed(1)));
+          setCompletionRate(calculatedCompletionRate);
           setIsLoading(false);
           return;
         }
         
-        // Fetch members to exclude system members
+        // Get real members (exclude system members)
         const { data: members, error: membersError } = await supabase
           .from('members')
-          .select('id, status')
-          .in('id', memberIds);
+          .select('id')
+          .in('id', memberIds)
+          .eq('club_id', clubId);
         
         if (membersError) throw membersError;
         
-        // Filter out system members
-        const regularMemberIds = members
-          .filter(member => member.status !== 'Sistema')
-          .map(member => member.id);
+        // Create a set of real member IDs for filtering
+        const realMemberIds = new Set(members.map(m => m.id));
         
         // Group participants by game
-        const participantsByGame: { [key: string]: number } = {};
-        
-        participants.forEach(participant => {
-          if (regularMemberIds.includes(participant.member_id)) {
-            if (!participantsByGame[participant.game_id]) {
-              participantsByGame[participant.game_id] = 0;
-            }
-            participantsByGame[participant.game_id]++;
+        const participantsByGame = participants.reduce<Record<string, number>>((acc, curr) => {
+          if (realMemberIds.has(curr.member_id)) {
+            acc[curr.game_id] = (acc[curr.game_id] || 0) + 1;
           }
-        });
+          return acc;
+        }, {});
+        
+        // Calculate total players and games with players
+        const gamesWithPlayers = Object.keys(participantsByGame).length;
+        const totalPlayers = Object.values(participantsByGame).reduce((sum, count) => sum + count, 0);
         
         // Calculate average players per game
-        const gamesWithParticipants = Object.keys(participantsByGame).length;
-        const totalParticipants = Object.values(participantsByGame).reduce((sum, count) => sum + count, 0);
-        
-        const calculatedAveragePlayers = gamesWithParticipants > 0 
-          ? totalParticipants / gamesWithParticipants 
+        const calculatedAveragePlayers = gamesWithPlayers > 0 
+          ? Number((totalPlayers / gamesWithPlayers).toFixed(2))
           : 0;
         
-        setAverageGoalsPerGame(parseFloat(calculatedAverageGoals.toFixed(1)));
-        setAveragePlayersPerGame(parseFloat(calculatedAveragePlayers.toFixed(1)));
-        setCompletionRate(parseFloat(calculatedCompletionRate.toFixed(1)));
+        // Update state with calculated values
+        setAverageGoalsPerGame(calculatedAverageGoals);
+        setAveragePlayersPerGame(calculatedAveragePlayers);
+        setCompletionRate(calculatedCompletionRate);
       } catch (err) {
         console.error('Error fetching game summary:', err);
         setError(err instanceof Error ? err : new Error('Error fetching game summary'));
@@ -149,15 +157,15 @@ export const useGameSummary = (clubId: string | undefined): GameSummaryStats => 
         setIsLoading(false);
       }
     };
-    
+
     fetchGameSummary();
-  }, [clubId]);
-  
-  return { 
-    averageGoalsPerGame, 
-    averagePlayersPerGame, 
+  }, [clubId, selectedYear]);
+
+  return {
+    averageGoalsPerGame,
+    averagePlayersPerGame,
     completionRate,
-    isLoading, 
-    error 
+    isLoading,
+    error
   };
 };

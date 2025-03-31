@@ -3,17 +3,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Trophy, Award, Star, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-type TopPlayerProps = {
+interface TopPlayer {
   id: string;
   name: string;
   nickname: string | null;
   photoUrl: string | null;
   score: number;
   participationRate: number;
-  position: number;
-};
+}
 
-const TopPlayerItem: React.FC<TopPlayerProps> = ({ 
+interface TopPlayersCardProps {
+  topPlayers: TopPlayer[];
+  isLoading: boolean;
+  error: Error | null;
+}
+
+const TopPlayerItem: React.FC<TopPlayer & { position: number }> = ({ 
   name, nickname, photoUrl, score, participationRate, position 
 }) => {
   const displayName = nickname || name;
@@ -52,19 +57,6 @@ const TopPlayerItem: React.FC<TopPlayerProps> = ({
       </div>
     </div>
   );
-};
-
-type TopPlayersCardProps = {
-  topPlayers: Array<{
-    id: string;
-    name: string;
-    nickname: string | null;
-    photoUrl: string | null;
-    score: number;
-    participationRate: number;
-  }>;
-  isLoading: boolean;
-  error: Error | null;
 };
 
 const TopPlayersCard: React.FC<TopPlayersCardProps> = ({ topPlayers, isLoading, error }) => {

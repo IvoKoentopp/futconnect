@@ -20,8 +20,6 @@ import {
   Receipt,
   Gamepad,
   BarChart,
-  Calculator,
-  Trophy,
   Goal,
   Shield,
   ThumbsUp,
@@ -180,43 +178,6 @@ const MemberProfile = () => {
   };
 
   const stats = selectedMember ? calculateStatistics() : null;
-
-  // Format calculation steps for display
-  const formatCalculation = () => {
-    if (!scoreDetails) return null;
-    
-    // Calc exact values for display in formula (to match the expected 8573.78)
-    const participationValue = Math.round(scoreDetails.participationRate * 100000);
-    const membershipValue = scoreDetails.membershipMonths * 10;
-    const ageValue = scoreDetails.age;
-    const totalValue = participationValue + membershipValue + ageValue;
-    const result = totalValue / 1000;
-    
-    return (
-      <>
-        <p className="text-sm mb-1 font-mono bg-amber-100 p-2 rounded">
-          (Taxa de Participação × 100000 + Meses de Associação × 10 + Idade) ÷ 1000
-        </p>
-        <p className="text-sm mb-1 font-mono bg-amber-100 p-2 rounded">
-          ({scoreDetails.participationRate.toFixed(1)} × 100000 + {scoreDetails.membershipMonths} × 10 + {scoreDetails.age}) ÷ 1000
-        </p>
-        <p className="text-sm mb-1 font-mono bg-amber-100 p-2 rounded">
-          ({participationValue} + {membershipValue} + {ageValue}) ÷ 1000 = {totalValue} ÷ 1000 = {result.toFixed(2)}
-        </p>
-      </>
-    );
-  };
-  
-  // Calculate the final score value for display
-  const calculateFinalScore = () => {
-    if (!scoreDetails) return "0.00";
-    
-    const participationValue = Math.round(scoreDetails.participationRate * 100000);
-    const membershipValue = scoreDetails.membershipMonths * 10;
-    const ageValue = scoreDetails.age;
-    const totalValue = participationValue + membershipValue + ageValue;
-    return (totalValue / 1000).toFixed(2);
-  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -714,62 +675,6 @@ const MemberProfile = () => {
                             </CardContent>
                           </Card>
                         </div>
-
-                        {/* Score Calculation Card - Moved to bottom */}
-                        {scoreDetails && (
-                          <Card className="bg-amber-50 mt-8">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-lg flex items-center">
-                                <Calculator className="mr-2 h-5 w-5 text-amber-600" />
-                                Cálculo de Pontuação
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                  <div className="flex items-start">
-                                    <Trophy className="h-5 w-5 text-amber-600 mr-2 mt-0.5" />
-                                    <div>
-                                      <p className="text-sm font-medium text-amber-800">Participação em Jogos</p>
-                                      <p className="text-lg font-bold">{scoreDetails.participationRate}%</p>
-                                      <p className="text-xs text-gray-600">
-                                        {scoreDetails.confirmedGames} de {scoreDetails.totalGames} jogos neste ano
-                                      </p>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex items-start">
-                                    <Clock className="h-5 w-5 text-amber-600 mr-2 mt-0.5" />
-                                    <div>
-                                      <p className="text-sm font-medium text-amber-800">Tempo de Associação</p>
-                                      <p className="text-lg font-bold">{Math.floor(scoreDetails.membershipMonths / 12)} anos e {scoreDetails.membershipMonths % 12} meses</p>
-                                      <p className="text-xs text-gray-600">
-                                        Total: {scoreDetails.membershipMonths} meses
-                                      </p>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex items-start">
-                                    <User className="h-5 w-5 text-amber-600 mr-2 mt-0.5" />
-                                    <div>
-                                      <p className="text-sm font-medium text-amber-800">Idade</p>
-                                      <p className="text-lg font-bold">{scoreDetails.age} anos</p>
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div className="bg-white p-4 rounded-md border border-amber-200">
-                                  <h4 className="font-medium text-amber-800 mb-2">Fórmula de Cálculo:</h4>
-                                  {formatCalculation()}
-                                  <div className="flex justify-between items-center mt-3">
-                                    <p className="text-sm text-gray-600">Pontuação Final:</p>
-                                    <p className="text-xl font-bold text-amber-800">{calculateFinalScore()}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
                       </div>
                     )}
                   </CardContent>

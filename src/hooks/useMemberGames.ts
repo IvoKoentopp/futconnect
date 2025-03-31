@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Game } from '@/types/game';
@@ -43,7 +42,7 @@ export const useMemberGames = (memberId: string | undefined) => {
         // Fetch member details for age and registration date
         const { data: memberData, error: memberError } = await supabase
           .from('members')
-          .select('name, birth_date, registration_date')
+          .select('name, birth_date, registration_date, club_id')
           .eq('id', memberId)
           .single();
           
@@ -93,16 +92,31 @@ export const useMemberGames = (memberId: string | undefined) => {
           
         if (eventsError) throw eventsError;
         
-        // Fetch team formations for games this member participated in
+        // Fetch team configurations to get team names and colors
+        const { data: teamConfigs, error: teamConfigsError } = await supabase
+          .from('team_configurations')
+          .select('*')
+          .eq('club_id', memberData.club_id)
+          .eq('is_active', true);
+
+        if (teamConfigsError) throw teamConfigsError;
+
+        // Get team formations for games this member participated in
         const completedGameIds = transformedData
           .filter(g => g.game.status === 'completed')
           .map(g => g.game.id);
           
         const { data: teamFormations, error: formationsError } = await supabase
-          .from('team_members')
-          .select('team, team_formation_id, team_formations(game_id)')
-          .eq('member_id', memberId)
-          .in('team_formations.game_id', completedGameIds);
+          .from('team_formations')
+          .select(`
+            game_id,
+            team_members!inner(
+              team,
+              member_id
+            )
+          `)
+          .eq('team_members.member_id', memberId)
+          .in('game_id', completedGameIds);
           
         if (formationsError) throw formationsError;
         
@@ -110,37 +124,58 @@ export const useMemberGames = (memberId: string | undefined) => {
         const gameResults = new Map();
         
         for (const formation of teamFormations) {
-          const gameId = formation.team_formations?.game_id;
+          const gameId = formation.game_id;
           if (!gameId) continue;
           
           // Get events for this game
           const { data: gameEventsData, error: gameEventsError } = await supabase
             .from('game_events')
             .select('event_type, team')
-            .eq('game_id', gameId);
+            .eq('game_id', gameId)
+            .in('event_type', ['goal', 'own-goal']);
             
           if (gameEventsError) throw gameEventsError;
           
-          // Calculate scores
-          let whiteGoals = 0;
-          let greenGoals = 0;
+          // Pegar times únicos que participaram deste jogo
+          const teamsInGame = [...new Set(gameEventsData.map(event => event.team))];
           
+          // Calcular gols para cada time no jogo
+          const gameGoals: Record<string, number> = {};
+          teamsInGame.forEach(team => {
+            gameGoals[team] = 0;
+          });
+
+          // Contar gols
           gameEventsData.forEach(event => {
             if (event.event_type === 'goal') {
-              if (event.team === 'white') whiteGoals++;
-              else if (event.team === 'green') greenGoals++;
+              gameGoals[event.team] = (gameGoals[event.team] || 0) + 1;
             } else if (event.event_type === 'own-goal') {
-              if (event.team === 'white') greenGoals++;
-              else if (event.team === 'green') whiteGoals++;
+              const otherTeams = teamsInGame.filter(t => t !== event.team);
+              const goalValue = 1 / otherTeams.length;
+              otherTeams.forEach(team => {
+                gameGoals[team] = (gameGoals[team] || 0) + goalValue;
+              });
             }
           });
-          
+
           // Store result and player's team
-          gameResults.set(gameId, {
-            whiteGoals,
-            greenGoals,
-            playerTeam: formation.team
-          });
+          const playerTeam = formation.team_members[0]?.team;
+          if (playerTeam) {
+            const teamGoals = Math.round(gameGoals[playerTeam] || 0);
+            
+            // Determinar resultado
+            const maxOtherTeamGoals = Math.max(
+              ...Object.entries(gameGoals)
+                .filter(([team]) => team !== playerTeam)
+                .map(([, goals]) => goals)
+            );
+
+            gameResults.set(gameId, {
+              playerTeam,
+              result: teamGoals > maxOtherTeamGoals ? 'win' : 
+                      teamGoals === maxOtherTeamGoals ? 'draw' : 'loss'
+            });
+          }
         }
         
         // Calculate statistics
@@ -159,20 +194,12 @@ export const useMemberGames = (memberId: string | undefined) => {
         });
         
         // Calculate wins, draws, and losses
-        gameResults.forEach((result, gameId) => {
-          const { whiteGoals, greenGoals, playerTeam } = result;
-          
-          if (playerTeam === 'white') {
-            if (whiteGoals > greenGoals) wins++;
-            else if (whiteGoals < greenGoals) losses++;
-            else draws++;
-          } else if (playerTeam === 'green') {
-            if (greenGoals > whiteGoals) wins++;
-            else if (greenGoals < whiteGoals) losses++;
-            else draws++;
-          }
+        gameResults.forEach(({ result }) => {
+          if (result === 'win') wins++;
+          else if (result === 'draw') draws++;
+          else if (result === 'loss') losses++;
         });
-        
+
         // Calculate score details
         if (memberData) {
           // Calculate age

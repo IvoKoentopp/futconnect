@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -13,7 +12,7 @@ type TopPlayer = {
   age: number;
 };
 
-export const useTopPlayers = (clubId: string | undefined, limit: number = 5) => {
+export const useTopPlayers = (clubId: string | undefined, selectedYear: string = "all", limit: number = 5) => {
   const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -28,16 +27,28 @@ export const useTopPlayers = (clubId: string | undefined, limit: number = 5) => 
       setIsLoading(true);
       
       try {
-        // Get current year
-        const currentYear = new Date().getFullYear();
-        const startOfYear = new Date(currentYear, 0, 1).toISOString();
+        // Definir o período de busca baseado no ano selecionado
+        let startDate: string;
+        let endDate: string;
         
-        // Fetch all games in the current year
+        if (selectedYear === "all") {
+          // Se for "all", usar o ano atual
+          const currentYear = new Date().getFullYear();
+          startDate = new Date(currentYear, 0, 1).toISOString();
+          endDate = new Date(currentYear + 1, 0, 1).toISOString();
+        } else {
+          // Se for um ano específico, usar o período daquele ano
+          startDate = new Date(parseInt(selectedYear), 0, 1).toISOString();
+          endDate = new Date(parseInt(selectedYear) + 1, 0, 1).toISOString();
+        }
+        
+        // Fetch all games in the selected period
         const { data: games, error: gamesError } = await supabase
           .from('games')
           .select('id, date')
           .eq('club_id', clubId)
-          .gte('date', startOfYear)
+          .gte('date', startDate)
+          .lt('date', endDate)
           .eq('status', 'completed');
         
         if (gamesError) throw gamesError;
@@ -91,33 +102,30 @@ export const useTopPlayers = (clubId: string | undefined, limit: number = 5) => 
           const monthDiff = (new Date().getFullYear() - registrationDate.getFullYear()) * 12 + 
             (new Date().getMonth() - registrationDate.getMonth());
           
-          // IMPORTANT: Calculate score using EXACTLY the same method as in MemberGamesHistory
           // First convert participation rate to a fixed precision value (e.g., 85.7)
           const fixedParticipationRate = parseFloat(participationRate.toFixed(1));
           
-          // Then use integer arithmetic for the calculation to avoid floating point errors
-          const participationValue = Math.round(fixedParticipationRate * 100000); // Exactly as shown in the formula
+          // Nova fórmula de cálculo da pontuação
+          const participationValue = Math.round(fixedParticipationRate * 1000);
           const membershipValue = monthDiff * 10;
           const ageValue = age;
-          const totalValue = participationValue + membershipValue + ageValue;
           
-          // Final step: divide by 1000 and format as string, then convert back to number
-          // This ensures EXACT match with MemberGamesHistory calculation
-          const score = Number((totalValue / 1000).toFixed(2));
+          // Pontuação final dividida por 1000
+          const score = (participationValue + membershipValue + ageValue) / 1000;
           
           return {
             id: member.id,
             name: member.name,
             nickname: member.nickname,
             photoUrl: member.photo_url,
-            score: score,
+            score: Number(score.toFixed(2)), // Formatando para 2 casas decimais
             participationRate: fixedParticipationRate,
             membershipMonths: monthDiff,
-            age: age
+            age
           };
         });
         
-        // Sort by score and limit to specified number
+        // Sort by score and limit to top N players
         const sortedPlayers = playerStats
           .sort((a, b) => b.score - a.score)
           .slice(0, limit);
@@ -130,9 +138,9 @@ export const useTopPlayers = (clubId: string | undefined, limit: number = 5) => 
         setIsLoading(false);
       }
     };
-    
+
     fetchTopPlayers();
-  }, [clubId, limit]);
-  
+  }, [clubId, selectedYear, limit]);
+
   return { topPlayers, isLoading, error };
 };
