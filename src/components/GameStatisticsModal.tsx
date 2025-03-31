@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Trash2, Goal, ShieldAlert, AlertTriangle, Users, FileText } from 'lucide-react';
 import { GameEventWithMember, getTeamDisplayName } from '@/types/game';
@@ -651,15 +651,20 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl h-[90vh] overflow-y-auto">
-        <DialogHeader className="sticky top-0 bg-white z-10 pb-4 border-b">
-          <DialogTitle className="flex justify-between items-center">
-            <span>Estatísticas do Jogo</span>
-            <Button variant="outline" size="sm" onClick={generatePDF} className="ml-2">
-              <FileText className="h-4 w-4 mr-2" />
-              Exportar PDF
-            </Button>
-          </DialogTitle>
-        </DialogHeader>
+        <div className="flex flex-col items-center gap-4 pb-4 border-b relative">
+          <h2 className="text-lg font-semibold leading-none tracking-tight">
+            Estatísticas do Jogo
+          </h2>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={generatePDF} 
+            className="h-9 w-[120px] sm:w-[140px]"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            {isMobile ? 'PDF' : 'Exportar PDF'}
+          </Button>
+        </div>
         
         {isLoading ? (
           <div className="flex items-center justify-center p-8">

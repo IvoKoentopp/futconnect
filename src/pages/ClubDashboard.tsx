@@ -18,6 +18,7 @@ import TopPlayerRankingCard from '@/components/TopPlayerRankingCard';
 import TopHighlightsCard from '@/components/TopHighlightsCard';
 import GameSummaryCard from '@/components/GameSummaryCard';
 import { Calendar, Users, TrendingUp, CreditCard, ArrowUp, ArrowDown, Trophy, Filter } from 'lucide-react';
+import { formatCurrency } from '@/utils/financialStatement';
 
 const ClubDashboard = () => {
   const { user } = useAuth();
@@ -145,14 +146,14 @@ const ClubDashboard = () => {
               <div className="text-red-500">Erro ao carregar saldo.</div>
             ) : (
               <>
-                <div className="text-3xl font-bold">R$ {totalBalance}</div>
+                <div className="text-3xl font-bold">{formatCurrency(totalBalance)}</div>
                 <p className="text-sm text-muted-foreground">
                   {monthlyIncrease >= 0 ? (
                     <ArrowUp className="mr-1 inline-block h-4 w-4 align-middle text-green-500" />
                   ) : (
                     <ArrowDown className="mr-1 inline-block h-4 w-4 align-middle text-red-500" />
                   )}
-                  R$ {Math.abs(monthlyIncrease)} este mês
+                  {formatCurrency(Math.abs(monthlyIncrease))} este mês
                 </p>
               </>
             )}

@@ -508,10 +508,10 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
         style={isTeamCard ? { borderLeft: `4px solid ${teamColor}` } : {}}
       >
         <div className="flex items-center">
-          <Avatar className="h-8 w-8 mr-2">
+          <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
             <AvatarFallback>{player.nickname.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
-          <span className="truncate max-w-[120px]">{player.nickname}</span>
+          <span className="truncate text-sm sm:text-base">{player.nickname}</span>
         </div>
         
         {isTeamCard ? (
@@ -536,7 +536,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-8 w-8 p-0 hover:opacity-80"
+                          className="h-7 w-7 sm:h-8 sm:w-8 p-0 hover:opacity-80"
                           onClick={() => handleAssignToTeam(player.id, team.team_name)}
                           disabled={!canUpdateTeams || isSaving}
                           style={{ 
@@ -544,7 +544,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                             border: team.team_color === '#ffffff' ? '1px solid #e5e7eb' : 'none'
                           }}
                         >
-                          <UserPlus className={`h-4 w-4 ${team.team_color === '#ffffff' ? 'text-gray-600' : 'text-white'}`} />
+                          <UserPlus className={`h-3 w-3 sm:h-4 sm:w-4 ${team.team_color === '#ffffff' ? 'text-gray-600' : 'text-white'}`} />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -582,7 +582,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className={`${isMobile ? 'w-[95vw] p-4' : 'max-w-5xl'} max-h-[90vh] overflow-y-auto`}>
+        <DialogContent className={`${isMobile ? 'w-[95vw] p-3 sm:p-4' : 'max-w-5xl'} max-h-[90vh] overflow-y-auto`}>
           <DialogHeader>
             <DialogTitle className="text-xl">Formação de Times</DialogTitle>
             <div className="text-gray-500 text-sm mt-1">
@@ -636,7 +636,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                         return (
                           <div 
                             key={team.id}
-                            className="border rounded-md bg-white p-4"
+                            className="border rounded-md bg-white p-3 sm:p-4"
                             style={{ borderLeft: `4px solid ${team.team_color}` }}
                           >
                             <h3 className="font-semibold mb-4 flex items-center"
@@ -645,7 +645,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                               {displayName} ({getTeamPlayers(displayName).length})
                             </h3>
                             
-                            <div className="space-y-2 min-h-[150px] max-h-[200px] overflow-y-auto p-1">
+                            <div className="space-y-2 min-h-[300px] sm:min-h-[400px] max-h-[300px] sm:max-h-[400px] overflow-y-auto p-1">
                               {getTeamPlayers(displayName).length === 0 ? (
                                 <p className="text-gray-500 italic text-center p-4">
                                   Nenhum jogador neste time
@@ -663,13 +663,13 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                       })}
                       
                       {/* Jogadores Não Alocados (Unassigned Players) */}
-                      <div className="border rounded-md bg-white p-4">
+                      <div className="border rounded-md bg-white p-3 sm:p-4">
                         <h3 className="font-semibold mb-4 flex items-center">
                           <Users className="mr-2 h-5 w-5" /> 
                           Jogadores Não Alocados ({unassignedPlayers.length})
                         </h3>
                         
-                        <div className="space-y-2 min-h-[150px] max-h-[200px] overflow-y-auto p-1">
+                        <div className="space-y-2 min-h-[300px] sm:min-h-[400px] max-h-[300px] sm:max-h-[400px] overflow-y-auto p-1">
                           {unassignedPlayers.length === 0 ? (
                             <p className="text-gray-500 italic text-center p-4">
                               Todos os jogadores foram alocados
@@ -684,7 +684,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                     </div>
                   ) : (
                     // Desktop layout - grid (dynamic based on team count + unassigned)
-                    <div className={`grid grid-cols-${Math.min(teamConfigurations.length + 1, 3)} gap-4`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {/* Team sections */}
                       {teamConfigurations.map(team => {
                         // Convert database team name to display name
@@ -693,7 +693,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                         return (
                           <div 
                             key={team.id}
-                            className="border rounded-md bg-white p-4"
+                            className="border rounded-md bg-white p-3 sm:p-4"
                             style={{ borderLeft: `4px solid ${team.team_color}` }}
                           >
                             <h3 className="font-semibold mb-4 flex items-center"
@@ -702,7 +702,7 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                               {displayName} ({getTeamPlayers(displayName).length})
                             </h3>
                             
-                            <div className="space-y-2 min-h-[400px] max-h-[400px] overflow-y-auto p-1">
+                            <div className="space-y-2 min-h-[300px] sm:min-h-[400px] max-h-[300px] sm:max-h-[400px] overflow-y-auto p-1">
                               {getTeamPlayers(displayName).length === 0 ? (
                                 <p className="text-gray-500 italic text-center p-4">
                                   Nenhum jogador neste time
@@ -720,13 +720,13 @@ const TeamFormationModal = ({ isOpen, onClose, gameId, gameData, confirmedPlayer
                       })}
                       
                       {/* Jogadores Não Alocados (Unassigned Players) */}
-                      <div className="border rounded-md bg-white p-4">
+                      <div className="border rounded-md bg-white p-3 sm:p-4">
                         <h3 className="font-semibold mb-4 flex items-center">
                           <Users className="mr-2 h-5 w-5" /> 
                           Jogadores Não Alocados ({unassignedPlayers.length})
                         </h3>
                         
-                        <div className="space-y-2 min-h-[400px] max-h-[400px] overflow-y-auto p-1">
+                        <div className="space-y-2 min-h-[300px] sm:min-h-[400px] max-h-[300px] sm:max-h-[400px] overflow-y-auto p-1">
                           {unassignedPlayers.length === 0 ? (
                             <p className="text-gray-500 italic text-center p-4">
                               Todos os jogadores foram alocados
