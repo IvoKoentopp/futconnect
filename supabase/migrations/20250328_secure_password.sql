@@ -1,4 +1,7 @@
--- Alterar o tipo da coluna password para encrypted
+toast({
+  title: "Arquivo enviado",
+  description: "Clique em 'Salvar Configurações' para aplicar as mudanças.",
+});-- Alterar o tipo da coluna password para encrypted
 ALTER TABLE members
 ALTER COLUMN password TYPE text USING password::text;
 

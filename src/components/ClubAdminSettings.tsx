@@ -30,19 +30,34 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+interface ClubMember {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+}
+
 interface ClubAdmin {
   id: string;
   name: string;
   email: string;
   created_at: string;
-}
-
-interface ClubMember {
-  id: string;
-  name: string;
-  email: string;
+  club_id: string;
   password: string;
 }
+
+type Database = {
+  public: {
+    Tables: {
+      club_members: {
+        Row: ClubMember;
+      };
+      club_admins: {
+        Row: ClubAdmin;
+      };
+    };
+  };
+};
 
 export const ClubAdminSettings = () => {
   const { user } = useAuth();
@@ -73,11 +88,10 @@ export const ClubAdminSettings = () => {
     }
   }, [user?.activeClub?.id]);
 
-  useEffect(() => {
-    if (openNewAdminDialog && user?.activeClub?.id) {
-      fetchActiveMembers();
-    }
-  }, [openNewAdminDialog, user?.activeClub?.id]);
+  const handleOpenDialog = () => {
+    fetchActiveMembers();
+    setOpenNewAdminDialog(true);
+  };
 
   const fetchClubAdmins = async () => {
     setLoading(true);
@@ -117,22 +131,22 @@ export const ClubAdminSettings = () => {
     setLoadingMembers(true);
     try {
       const { data, error } = await supabase
-        .from('club_members')
-        .select('id, name, email')
+        .from('members')
+        .select('id, name, email, status')
         .eq('club_id', user?.activeClub?.id)
-        .eq('is_active', true)
+        .eq('status', 'Ativo')
         .order('name');
 
       if (error) {
         throw error;
       }
 
-      // Filter out members who are already admins
-      const membersNotAdmin = data?.filter(member => 
-        !admins.some(admin => admin.email === member.email)
+      // Filtrar membros que já são administradores
+      const membersNotAdmin = (data || []).filter(member => 
+        !admins.some(admin => admin.email?.toLowerCase() === member.email?.toLowerCase())
       );
 
-      setActiveMembers(membersNotAdmin || []);
+      setActiveMembers(membersNotAdmin);
     } catch (error) {
       console.error('Error fetching members:', error);
       toast({
@@ -164,12 +178,16 @@ export const ClubAdminSettings = () => {
         throw new Error('Sócio não encontrado');
       }
 
+      // Gerar uma senha aleatória temporária
+      const tempPassword = Math.random().toString(36).slice(-8);
+
       const { error } = await supabase
         .from('club_admins')
         .insert({
           club_id: user?.activeClub?.id,
           email: selectedMember.email,
-          name: selectedMember.name
+          name: selectedMember.name,
+          password: tempPassword // Adicionando senha temporária
         });
 
       if (error) {
@@ -314,7 +332,7 @@ export const ClubAdminSettings = () => {
         {canEdit && (
           <Dialog open={openNewAdminDialog} onOpenChange={setOpenNewAdminDialog}>
             <DialogTrigger asChild>
-              <Button className="w-full">
+              <Button className="w-full" onClick={handleOpenDialog}>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Adicionar Administrador
               </Button>
@@ -341,15 +359,21 @@ export const ClubAdminSettings = () => {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Selecione um sócio" />
+                              <SelectValue placeholder={loadingMembers ? "Carregando..." : "Selecione um sócio"} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {activeMembers.map((member) => (
-                              <SelectItem key={member.id} value={member.id}>
-                                {member.name}
-                              </SelectItem>
-                            ))}
+                            {loadingMembers ? (
+                              <div className="flex items-center justify-center p-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              </div>
+                            ) : (
+                              activeMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id}>
+                                  {member.name}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
