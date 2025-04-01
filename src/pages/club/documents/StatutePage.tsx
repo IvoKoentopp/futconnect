@@ -3,7 +3,7 @@ import { useClubDocuments } from "@/hooks/useClubDocuments";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthorization } from "@/hooks/useAuthorization";
 import { Button } from "@/components/ui/button";
-import { Download, FileWarning, Loader2 } from "lucide-react";
+import { Download, FileWarning, Loader2, ExternalLink } from "lucide-react";
 
 export function StatutePage() {
   const { user } = useAuth();
@@ -24,38 +24,57 @@ export function StatutePage() {
     );
   }
 
+  const openPresentationUrl = () => {
+    // implement the logic to open the presentation URL
+  };
+
   return (
     <div className="container py-8">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Estatuto do Clube</CardTitle>
               <CardDescription>Estatuto oficial do {user?.activeClub?.name || 'clube'}</CardDescription>
             </div>
-            {document?.url && (
-              <Button
-                onClick={downloadDocument}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Baixar PDF
-              </Button>
-            )}
+            <div className="flex flex-col sm:flex-row gap-2">
+              {document?.link_url && (
+                <Button
+                  onClick={openPresentationUrl}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 w-full sm:w-auto"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Ver Apresentação
+                </Button>
+              )}
+              {document?.url && (
+                <Button
+                  onClick={downloadDocument}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 w-full sm:w-auto"
+                >
+                  <Download className="h-4 w-4" />
+                  Baixar PDF
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {document?.url ? (
-            <iframe
-              src={document.url}
-              className="w-full h-[600px] border-0 rounded-lg"
-              title="Visualização do Estatuto"
-            />
+            <div className="w-full rounded-lg overflow-hidden">
+              <iframe
+                src={document.url}
+                className="w-full h-[400px] sm:h-[600px] border-0"
+                title="Visualização do Estatuto"
+              />
+            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg bg-gray-50">
-              <FileWarning className="h-16 w-16 text-gray-400 mb-4" />
+            <div className="flex flex-col items-center justify-center p-4 sm:p-8 border-2 border-dashed rounded-lg bg-gray-50">
+              <FileWarning className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mb-4" />
               <p className="text-sm text-gray-500 text-center">
                 {canEdit 
                   ? "O estatuto ainda não foi cadastrado. Acesse as configurações do clube para fazer o upload."

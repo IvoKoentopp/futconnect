@@ -111,11 +111,18 @@ const MemberGamesHistory: React.FC<MemberGamesHistoryProps> = ({
       <Table>
         <TableCaption>Histórico de jogos do sócio</TableCaption>
         <TableHeader>
-          <TableRow>
+          {/* Cabeçalho para Desktop */}
+          <TableRow className="hidden md:table-row">
             <TableHead>Data</TableHead>
             <TableHead>Título</TableHead>
             <TableHead>Local</TableHead>
             <TableHead>Status do Jogo</TableHead>
+            <TableHead>Participação</TableHead>
+          </TableRow>
+          {/* Cabeçalho para Mobile */}
+          <TableRow className="md:hidden">
+            <TableHead>Data</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Participação</TableHead>
           </TableRow>
         </TableHeader>
@@ -128,24 +135,44 @@ const MemberGamesHistory: React.FC<MemberGamesHistoryProps> = ({
             </TableRow>
           ) : (
             games.map((participation) => (
-              <TableRow key={participation.game.id}>
-                <TableCell>{formatDate(participation.game.date)}</TableCell>
-                <TableCell>{participation.game.title}</TableCell>
-                <TableCell>{participation.game.location}</TableCell>
-                <TableCell>
-                  <Badge className={getGameStatusBadgeColor(participation.game.status)}>
-                    {participation.game.status === 'scheduled' ? 'Agendado' : 
-                     participation.game.status === 'completed' ? 'Realizado' : 
-                     participation.game.status === 'canceled' ? 'Cancelado' : participation.game.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge className={getStatusBadgeColor(participation.status)}>
-                    {participation.status === 'confirmed' ? 'Confirmado' : 
-                     participation.status === 'declined' ? 'Recusado' : 'Não confirmado'}
-                  </Badge>
-                </TableCell>
-              </TableRow>
+              <React.Fragment key={participation.game.id}>
+                {/* Linha para Desktop */}
+                <TableRow className="hidden md:table-row">
+                  <TableCell>{formatDate(participation.game.date)}</TableCell>
+                  <TableCell>{participation.game.title}</TableCell>
+                  <TableCell>{participation.game.location}</TableCell>
+                  <TableCell>
+                    <Badge className={getGameStatusBadgeColor(participation.game.status)}>
+                      {participation.game.status === 'scheduled' ? 'Agendado' : 
+                       participation.game.status === 'completed' ? 'Realizado' : 
+                       participation.game.status === 'canceled' ? 'Cancelado' : participation.game.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusBadgeColor(participation.status)}>
+                      {participation.status === 'confirmed' ? 'Confirmado' : 
+                       participation.status === 'declined' ? 'Recusado' : 'Não confirmado'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+                {/* Linha para Mobile */}
+                <TableRow className="md:hidden">
+                  <TableCell>{formatDate(participation.game.date)}</TableCell>
+                  <TableCell>
+                    <Badge className={getGameStatusBadgeColor(participation.game.status)}>
+                      {participation.game.status === 'scheduled' ? 'Agendado' : 
+                       participation.game.status === 'completed' ? 'Realizado' : 
+                       participation.game.status === 'canceled' ? 'Cancelado' : participation.game.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getStatusBadgeColor(participation.status)}>
+                      {participation.status === 'confirmed' ? 'Confirmado' : 
+                       participation.status === 'declined' ? 'Recusado' : 'Não confirmado'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              </React.Fragment>
             ))
           )}
         </TableBody>

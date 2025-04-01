@@ -218,10 +218,16 @@ export function MemberForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Tabs defaultValue="personal" className="w-full">
-          <TabsList className="grid grid-cols-3 mb-4">
-            <TabsTrigger value="personal">Informações Pessoais</TabsTrigger>
-            <TabsTrigger value="membership">Dados de Associação</TabsTrigger>
-            <TabsTrigger value="football">Futebol</TabsTrigger>
+          <TabsList className="flex flex-col sm:grid sm:grid-cols-3 gap-2 sm:gap-0 mb-4 h-auto">
+            <TabsTrigger value="personal" className="w-full text-sm sm:text-base whitespace-nowrap py-2 px-4">
+              <span className="truncate">Informações Pessoais</span>
+            </TabsTrigger>
+            <TabsTrigger value="membership" className="w-full text-sm sm:text-base whitespace-nowrap py-2 px-4">
+              <span className="truncate">Dados de Associação</span>
+            </TabsTrigger>
+            <TabsTrigger value="football" className="w-full text-sm sm:text-base whitespace-nowrap py-2 px-4">
+              <span className="truncate">Futebol</span>
+            </TabsTrigger>
           </TabsList>
           
           {/* Personal Information Tab */}

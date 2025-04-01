@@ -34,18 +34,18 @@ export function AnthemPage() {
     <div className="container py-8">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Hino do Clube</CardTitle>
               <CardDescription>Hino oficial do {user?.activeClub?.name || 'clube'}</CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               {document?.link_url && (
                 <Button
                   onClick={openAudioUrl}
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 w-full sm:w-auto"
                 >
                   <ExternalLink className="h-4 w-4" />
                   Ouvir Hino
@@ -56,7 +56,7 @@ export function AnthemPage() {
                   onClick={downloadDocument}
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 w-full sm:w-auto"
                 >
                   <Download className="h-4 w-4" />
                   Baixar Partitura
@@ -67,14 +67,16 @@ export function AnthemPage() {
         </CardHeader>
         <CardContent>
           {document?.url ? (
-            <iframe
-              src={document.url}
-              className="w-full h-[600px] border-0 rounded-lg"
-              title="Visualização da Partitura do Hino"
-            />
+            <div className="w-full rounded-lg overflow-hidden">
+              <iframe
+                src={document.url}
+                className="w-full h-[400px] sm:h-[600px] border-0"
+                title="Visualização da Partitura do Hino"
+              />
+            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg bg-gray-50">
-              <FileWarning className="h-16 w-16 text-gray-400 mb-4" />
+            <div className="flex flex-col items-center justify-center p-4 sm:p-8 border-2 border-dashed rounded-lg bg-gray-50">
+              <FileWarning className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mb-4" />
               <p className="text-sm text-gray-500 text-center">
                 {canEdit 
                   ? "A partitura do hino ainda não foi cadastrada. Acesse as configurações do clube para fazer o upload."

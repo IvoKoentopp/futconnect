@@ -24,8 +24,16 @@ import {
   Shield,
   ThumbsUp,
   ThumbsDown,
-  Equal
+  Equal,
+  ChevronDown
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -194,8 +202,52 @@ const MemberProfile = () => {
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Members sidebar */}
-        <Card className="w-full md:w-1/4 lg:w-1/5">
+        {/* Members selector - Mobile */}
+        <div className="md:hidden w-full">
+          <Select value={selectedMember?.id || ''} onValueChange={(value) => {
+            const member = members.find(m => m.id === value);
+            if (member) selectMember(member);
+          }}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecione um sócio">
+                {selectedMember ? (
+                  <div className="flex items-center">
+                    <Avatar className="h-6 w-6 mr-2">
+                      <AvatarFallback className="text-xs">
+                        {selectedMember.name?.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="truncate">{selectedMember.name}</span>
+                  </div>
+                ) : (
+                  "Selecione um sócio"
+                )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {members.map((member) => (
+                <SelectItem key={member.id} value={member.id}>
+                  <div className="flex items-center">
+                    <Avatar className="h-6 w-6 mr-2">
+                      <AvatarFallback className="text-xs">
+                        {member.name?.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{member.name}</span>
+                      <small className="text-muted-foreground text-xs">
+                        {member.category}
+                      </small>
+                    </div>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Members sidebar - Desktop */}
+        <Card className="hidden md:block w-full md:w-1/4 lg:w-1/5">
           <CardHeader>
             <CardTitle className="text-xl flex items-center">
               <Users size={20} className="mr-2" />
@@ -251,21 +303,23 @@ const MemberProfile = () => {
         <div className="flex-1">
           {!selectedMember ? (
             <Card className="h-full flex items-center justify-center">
-              <CardContent className="text-center p-12">
-                <User size={48} className="mx-auto text-gray-300 mb-4" />
-                <h3 className="text-xl font-medium text-gray-500">
+              <CardContent className="text-center p-6 sm:p-12">
+                <User size={40} className="mx-auto text-gray-300 mb-4" />
+                <h3 className="text-lg sm:text-xl font-medium text-gray-500">
                   Selecione um sócio para visualizar seu perfil
                 </h3>
               </CardContent>
             </Card>
           ) : (
             <Tabs defaultValue="profile" className="w-full">
-              <TabsList className="grid grid-cols-4 mb-6">
-                <TabsTrigger value="profile">Perfil</TabsTrigger>
-                <TabsTrigger value="financial">Financeiro</TabsTrigger>
-                <TabsTrigger value="games">Jogos</TabsTrigger>
-                <TabsTrigger value="statistics">Estatísticas</TabsTrigger>
-              </TabsList>
+              <div className="mb-10">
+                <TabsList className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-0">
+                  <TabsTrigger value="profile" className="text-sm sm:text-base whitespace-nowrap">Perfil</TabsTrigger>
+                  <TabsTrigger value="financial" className="text-sm sm:text-base whitespace-nowrap">Financeiro</TabsTrigger>
+                  <TabsTrigger value="games" className="text-sm sm:text-base whitespace-nowrap">Jogos</TabsTrigger>
+                  <TabsTrigger value="statistics" className="text-sm sm:text-base whitespace-nowrap">Estatísticas</TabsTrigger>
+                </TabsList>
+              </div>
               
               {/* Profile Tab */}
               <TabsContent value="profile" className="mt-0">

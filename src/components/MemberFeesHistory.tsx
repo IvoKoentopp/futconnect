@@ -247,7 +247,8 @@ const MemberFeesHistory: React.FC<MemberFeesHistoryProps> = ({
       <Table>
         <TableCaption>Histórico de mensalidades</TableCaption>
         <TableHeader>
-          <TableRow>
+          {/* Cabeçalho para Desktop */}
+          <TableRow className="hidden md:table-row">
             <TableHead>Referência</TableHead>
             <TableHead>Valor</TableHead>
             <TableHead>Vencimento</TableHead>
@@ -255,27 +256,40 @@ const MemberFeesHistory: React.FC<MemberFeesHistoryProps> = ({
             <TableHead>Método</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
+          {/* Cabeçalho para Mobile */}
+          <TableRow className="md:hidden">
+            <TableHead>Referência</TableHead>
+            <TableHead>Valor</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
         </TableHeader>
         <TableBody>
-          {fees.map((fee) => (
-            <TableRow key={fee.id}>
-              <TableCell className="font-medium">
-                {formatMonthReference(fee.referenceMonth)}
-              </TableCell>
-              <TableCell>{formatCurrency(fee.amount)}</TableCell>
-              <TableCell>{formatDate(fee.dueDate)}</TableCell>
-              <TableCell>{formatDate(fee.paymentDate)}</TableCell>
-              <TableCell>{getPaymentMethodLabel(fee.paymentMethod)}</TableCell>
-              <TableCell>
-                <Badge className={getStatusBadge(fee.status)}>
-                  {fee.status === 'paid' && 'Pago'}
-                  {fee.status === 'paid_late' && 'Pago em Atraso'}
-                  {fee.status === 'pending' && 'Pendente'}
-                  {fee.status === 'late' && 'Atrasado'}
-                  {fee.status === 'cancelled' && 'Cancelado'}
-                </Badge>
-              </TableCell>
-            </TableRow>
+          {fees.map((fee, index) => (
+            <React.Fragment key={index}>
+              {/* Linha para Desktop */}
+              <TableRow className="hidden md:table-row">
+                <TableCell>{formatMonthReference(fee.referenceMonth)}</TableCell>
+                <TableCell>{formatCurrency(fee.amount)}</TableCell>
+                <TableCell>{formatDate(fee.dueDate)}</TableCell>
+                <TableCell>{formatDate(fee.paymentDate)}</TableCell>
+                <TableCell>{getPaymentMethodLabel(fee.paymentMethod)}</TableCell>
+                <TableCell>
+                  <Badge className={getStatusBadge(fee.status)}>
+                    {getStatusText(fee.status)}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+              {/* Linha para Mobile */}
+              <TableRow className="md:hidden">
+                <TableCell>{formatMonthReference(fee.referenceMonth)}</TableCell>
+                <TableCell>{formatCurrency(fee.amount)}</TableCell>
+                <TableCell>
+                  <Badge className={getStatusBadge(fee.status)}>
+                    {getStatusText(fee.status)}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            </React.Fragment>
           ))}
         </TableBody>
       </Table>

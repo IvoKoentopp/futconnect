@@ -1091,7 +1091,7 @@ const Sponsors = () => {
           ${tableContent}
           
           <div class="report-footer">
-            <p>© ${new Date().getFullYear()} FutConnect - Todos os direitos reservados</p>
+            <p> 2023 FutConnect - Todos os direitos reservados</p>
             <p>Relatório gerado automaticamente pelo sistema</p>
           </div>
           
@@ -1117,115 +1117,94 @@ const Sponsors = () => {
   
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Patrocinadores</h1>
-          <p className="text-gray-500">
-            Gerencie eventos e patrocinadores do clube
-          </p>
-        </div>
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <CardTitle className="text-2xl flex items-center">
+            <Award className="mr-2 h-6 w-6" />
+            Eventos dos Patrocinadores
+          </CardTitle>
+          
+          {/* Botões de ação primários */}
           {canEdit && (
-            <>
-              <Button 
-                variant="print"
-                onClick={handlePrintEvents}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                Imprimir listagem de eventos
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={handleOpenBatchEventDialog}
-                className="bg-white hover:bg-gray-100"
-              >
-                <ListPlus className="mr-2 h-4 w-4" />
-                Gerar Lista
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={handleOpenRandomEventDialog}
-                className="bg-white hover:bg-gray-100"
-              >
-                <Shuffle className="mr-2 h-4 w-4" />
-                Sortear
-              </Button>
-              <Button 
-                className="bg-futconnect-600 hover:bg-futconnect-700"
-                onClick={handleNewEvent}
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <Button
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setIsDialogOpen(true);
+                }}
+                className="flex-1 sm:flex-none"
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Novo Evento
               </Button>
-            </>
+              <Button
+                variant="outline"
+                onClick={() => setIsRandomEventDialogOpen(true)}
+                className="flex-1 sm:flex-none"
+              >
+                <Shuffle className="mr-2 h-4 w-4" />
+                Evento Aleatório
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsBatchEventDialogOpen(true)}
+                className="flex-1 sm:flex-none"
+              >
+                <ListPlus className="mr-2 h-4 w-4" />
+                Eventos em Lote
+              </Button>
+            </div>
           )}
+        </div>
+
+        {/* Filtros e busca */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-1 gap-2">
+            <div className="flex-1">
+              <Input
+                placeholder="Buscar eventos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <Button variant="outline" onClick={handlePrintEvents} className="hidden sm:flex">
+              <Printer className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Ano" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {availableYears.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[120px]">
+                <SelectValue placeholder="Mês" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((month) => (
+                  <SelectItem key={month.value} value={month.value}>
+                    {month.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
       
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <CardTitle>Eventos</CardTitle>
-            
-            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-              {/* Filtros de Ano e Mês */}
-              <div className="flex gap-2 w-full md:w-auto">
-                <div className="w-full md:w-40">
-                  <Select
-                    value={selectedYear}
-                    onValueChange={setSelectedYear}
-                  >
-                    <SelectTrigger className="h-9">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Ano" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os Anos</SelectItem>
-                      {availableYears.map(year => (
-                        <SelectItem key={year} value={year.toString()}>
-                          {year}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="w-full md:w-40">
-                  <Select
-                    value={selectedMonth}
-                    onValueChange={setSelectedMonth}
-                  >
-                    <SelectTrigger className="h-9">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <SelectValue placeholder="Mês" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MONTHS.map(month => (
-                        <SelectItem key={month.value} value={month.value}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              {/* Campo de busca */}
-              <div className="relative w-full md:w-96">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                <Input
-                  type="search"
-                  placeholder="Buscar eventos..."
-                  className="pl-9 h-9"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        
         <CardContent>
           {isLoadingEvents ? (
             <div className="flex items-center justify-center py-8">
@@ -1250,57 +1229,44 @@ const Sponsors = () => {
               <p className="mt-1">Comece adicionando um novo evento para seus patrocinadores.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto" id="events-table" ref={eventsTableRef}>
-              <Table className="border-collapse">
+            <div className="hidden md:block">
+              <Table>
                 <TableHeader>
-                  <TableRow className="bg-gray-50">
+                  <TableRow>
                     <TableHead>Data</TableHead>
-                    <TableHead>Tipo de Evento</TableHead>
                     <TableHead>Patrocinador</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right no-print">Ações</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    {canEdit && <TableHead className="w-[100px]">Ações</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredEvents.map((event) => (
-                    <TableRow key={event.id} className="hover:bg-gray-50">
-                      <TableCell>
-                        {formatDisplayDate(event.date)}
-                      </TableCell>
-                      <TableCell>{event.event_type}</TableCell>
+                    <TableRow key={event.id}>
+                      <TableCell>{formatDisplayDate(event.date)}</TableCell>
                       <TableCell>{event.sponsor_name}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          event.status === 'Realizado' 
-                            ? 'bg-green-100 text-green-800 status-realizado' 
-                            : 'bg-blue-100 text-blue-800 status-agendado'
-                        }`}>
-                          {event.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right no-print">
-                        {canEdit && (
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditEvent(event)}
-                              className="text-blue-600 hover:text-blue-800 hover:bg-blue-100"
-                            >
-                              <PenLine className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteEvent(event.id)}
-                              className="text-red-600 hover:text-red-800 hover:bg-red-100"
-                              disabled={deleteEventMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
+                      <TableCell>{event.event_type}</TableCell>
+                      <TableCell>{event.status}</TableCell>
+                      <TableCell>{event.description || '-'}</TableCell>
+                      {canEdit && (
+                        <TableCell className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditEvent(event)}
+                          >
+                            <PenLine className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteEvent(event.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1309,6 +1275,57 @@ const Sponsors = () => {
           )}
         </CardContent>
       </Card>
+      
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {filteredEvents.map((event) => (
+          <Card key={event.id}>
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-medium">{event.sponsor_name}</p>
+                    <p className="text-sm text-muted-foreground">{formatDisplayDate(event.date)}</p>
+                  </div>
+                  {canEdit && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditEvent(event)}
+                      >
+                        <PenLine className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteEvent(event.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Tipo:</span>
+                    <span className="text-sm">{event.event_type}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Status:</span>
+                    <span className="text-sm">{event.status}</span>
+                  </div>
+                  {event.description && (
+                    <div className="mt-2">
+                      <span className="text-sm text-muted-foreground">Descrição:</span>
+                      <p className="text-sm mt-1">{event.description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
       
       {/* Dialog for adding/editing events */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
