@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Table,
@@ -110,11 +109,6 @@ const OverdueFeesTable: React.FC<OverdueFeesTableProps> = ({ clubId }) => {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4">
-      <div className="flex items-center mb-4">
-        <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-        <h2 className="text-lg font-medium">Mensalidades em Atraso</h2>
-      </div>
-      
       {isLoading ? (
         <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-futconnect-600"></div>

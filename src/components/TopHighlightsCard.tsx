@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Star, Loader2 } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TopHighlight } from '@/hooks/useTopHighlights';
 
 interface TopHighlightsCardProps {
@@ -11,15 +10,6 @@ interface TopHighlightsCardProps {
 }
 
 const TopHighlightsCard: React.FC<TopHighlightsCardProps> = ({ topHighlights, isLoading, error }) => {
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   return (
     <Card className="shadow-md">
       <CardHeader>
@@ -52,15 +42,11 @@ const TopHighlightsCard: React.FC<TopHighlightsCardProps> = ({ topHighlights, is
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0 relative">
                     {index < 3 && (
-                      <div className={`absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full text-white text-xs
+                      <div className={`w-5 h-5 flex items-center justify-center rounded-full text-white text-xs
                         ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : 'bg-amber-700'}`}>
                         {index + 1}
                       </div>
                     )}
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={highlight.photoUrl || undefined} alt={highlight.nickname || highlight.name} />
-                      <AvatarFallback>{getInitials(highlight.nickname || highlight.name)}</AvatarFallback>
-                    </Avatar>
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">

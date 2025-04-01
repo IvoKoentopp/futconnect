@@ -1,22 +1,25 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy, Award, Star, User } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlayerRanking } from '@/hooks/usePlayerRanking';
+import { Trophy, Star, User } from 'lucide-react';
 
-type TopPlayerItemProps = {
+interface TopPlayer {
+  id: string;
   name: string;
+  nickname: string | null;
   score: number;
-  position: number;
-  photoUrl: string | null;
-};
+  gamesPlayed: number;
+}
 
-const TopPlayerItem: React.FC<TopPlayerItemProps> = ({ 
-  name, score, position, photoUrl 
+interface TopPlayerRankingCardProps {
+  topPlayers: TopPlayer[];
+  isLoading: boolean;
+  error: Error | null;
+}
+
+const TopPlayerItem: React.FC<TopPlayer & { position: number }> = ({ 
+  name, nickname, score, gamesPlayed, position 
 }) => {
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  
-  // Format score to two decimal places
+  const displayName = nickname || name;
   const formattedScore = score.toFixed(2);
   
   return (
@@ -24,21 +27,17 @@ const TopPlayerItem: React.FC<TopPlayerItemProps> = ({
       <div className="flex items-center gap-3">
         <div className="flex-shrink-0 relative">
           {position <= 3 && (
-            <div className={`absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center rounded-full text-white text-xs
+            <div className={`w-5 h-5 flex items-center justify-center rounded-full text-white text-xs
               ${position === 1 ? 'bg-yellow-500' : position === 2 ? 'bg-gray-400' : 'bg-amber-700'}`}>
               {position}
             </div>
           )}
-          <Avatar className="h-10 w-10 border border-gray-200">
-            <AvatarImage src={photoUrl || undefined} alt={name} />
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
         </div>
         <div>
-          <p className="font-medium text-sm">{name}</p>
+          <p className="font-medium text-sm">{displayName}</p>
           <div className="flex items-center text-xs text-muted-foreground">
-            <Award className="h-3 w-3 mr-1 text-amber-500" />
-            <span>ranking</span>
+            <Star className="h-3 w-3 mr-1 text-amber-500" />
+            <span>{gamesPlayed} jogos</span>
           </div>
         </div>
       </div>
@@ -50,18 +49,12 @@ const TopPlayerItem: React.FC<TopPlayerItemProps> = ({
   );
 };
 
-type TopPlayerRankingCardProps = {
-  topPlayers: PlayerRanking[];
-  isLoading: boolean;
-  error: Error | null;
-};
-
 const TopPlayerRankingCard: React.FC<TopPlayerRankingCardProps> = ({ topPlayers, isLoading, error }) => {
   return (
     <Card className="shadow-md">
       <CardHeader>
         <CardTitle className="text-base md:text-lg flex items-center">
-          <Award className="mr-2 h-5 w-5 text-futconnect-600" />
+          <Trophy className="mr-2 h-5 w-5 text-futconnect-600" />
           Top Desempenho
         </CardTitle>
         <CardDescription className="text-xs md:text-sm">
@@ -84,13 +77,15 @@ const TopPlayerRankingCard: React.FC<TopPlayerRankingCardProps> = ({ topPlayers,
           </div>
         ) : (
           <div className="space-y-2">
-            {topPlayers.map((player) => (
+            {topPlayers.map((player, index) => (
               <TopPlayerItem
                 key={player.id}
+                id={player.id}
                 name={player.name}
+                nickname={player.nickname}
                 score={player.score}
-                position={player.position}
-                photoUrl={player.photoUrl}
+                gamesPlayed={player.gamesPlayed}
+                position={index + 1}
               />
             ))}
           </div>

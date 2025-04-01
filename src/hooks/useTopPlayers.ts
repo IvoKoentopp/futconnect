@@ -5,7 +5,6 @@ type TopPlayer = {
   id: string;
   name: string;
   nickname: string | null;
-  photoUrl: string | null;
   score: number;
   participationRate: number;
   membershipMonths: number;
@@ -73,7 +72,7 @@ export const useTopPlayers = (clubId: string | undefined, selectedYear: string =
         // Get all active members
         const { data: members, error: membersError } = await supabase
           .from('members')
-          .select('id, name, nickname, photo_url, birth_date, registration_date')
+          .select('id, name, nickname, birth_date, registration_date')
           .eq('club_id', clubId)
           .eq('status', 'Ativo');
         
@@ -117,7 +116,6 @@ export const useTopPlayers = (clubId: string | undefined, selectedYear: string =
             id: member.id,
             name: member.name,
             nickname: member.nickname,
-            photoUrl: member.photo_url,
             score: Number(score.toFixed(2)), // Formatando para 2 casas decimais
             participationRate: fixedParticipationRate,
             membershipMonths: monthDiff,

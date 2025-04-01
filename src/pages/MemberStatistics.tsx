@@ -1,401 +1,157 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from 'react';
+import { differenceInYears, differenceInMonths } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Progress } from "@/components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
+  Info, 
+  Clock, 
   Users, 
   UserCheck, 
   UserX, 
-  Percent,
-  ListChecks,
-  Clock,
-  UserRound,
-  Award,
-  Info
-} from "lucide-react";
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { Progress } from "@/components/ui/progress";
-import { differenceInYears, differenceInMonths } from 'date-fns';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+  Percent, 
+  ListChecks, 
+  UserRound, 
+  Award 
+} from 'lucide-react';
+import { MemberStats, CategoryDistributionResult, AgeDistributionResult, MembershipDurationResult, TopSponsorResult } from '@/types/database';
 
-type CategoryDistribution = {
-  category: string;
+interface CategoryMember {
+  id: string;
+  name: string;
+  nickname: string | null;
+}
+
+interface AgeDistribution extends AgeDistributionResult {}
+
+interface MembershipDuration extends MembershipDurationResult {}
+
+interface TopSponsor extends TopSponsorResult {}
+
+interface SponsorData {
+  sponsor_id: string;
+  sponsor_name: string;
+  sponsor_nickname: string | null;
   count: number;
   percentage: number;
-  members?: { id: string; name: string; nickname: string | null }[];
-};
-
-type MembershipDuration = {
-  label: string;
-  count: number;
-  percentage: number;
-  order: number;
-  members?: { id: string; name: string; nickname: string | null }[];
-};
-
-type AgeDistribution = {
-  ageRange: string;
-  count: number;
-  percentage: number;
-  order: number;
-  members?: { id: string; name: string; nickname: string | null }[];
-};
-
-type SponsorData = {
-  sponsorId: string;
-  sponsorName: string;
-  sponsorNickname: string | null;
-  count: number;
-  percentage: number;
-  godchildren?: { id: string; name: string; nickname: string | null }[];
-};
+  godchildren: CategoryMember[];
+}
 
 const MemberStatistics = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalMembers: 0,
-    activeMembers: 0,
-    inactiveMembers: 0,
-    activityRate: 0
+  const [stats, setStats] = useState<MemberStats>({
+    total_members: 0,
+    active_members: 0,
+    inactive_members: 0,
+    activity_rate: 0
   });
-  const [categoryDistribution, setCategoryDistribution] = useState<CategoryDistribution[]>([]);
-  const [membershipDurations, setMembershipDurations] = useState<MembershipDuration[]>([]);
-  const [averageMembershipYears, setAverageMembershipYears] = useState<number>(0);
+  const [categoryDistribution, setCategoryDistribution] = useState<CategoryDistributionResult[]>([]);
   const [ageDistribution, setAgeDistribution] = useState<AgeDistribution[]>([]);
-  const [averageAge, setAverageAge] = useState<number>(0);
-  const [topSponsors, setTopSponsors] = useState<SponsorData[]>([]);
+  const [membershipDuration, setMembershipDuration] = useState<MembershipDuration[]>([]);
+  const [topSponsors, setTopSponsors] = useState<TopSponsor[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
+  const clubId = user?.activeClub?.id;
 
   useEffect(() => {
-    fetchMemberStats();
-  }, []);
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
 
-  const fetchMemberStats = async () => {
-    if (!user?.activeClub?.id) return;
-    
-    setIsLoading(true);
-    try {
-      // Get all members excluding "Sistema" status
-      const { data: allMembers, error: allError } = await supabase
-        .from('members')
-        .select('*')
-        .eq('club_id', user.activeClub.id)
-        .neq('status', 'Sistema');
-        
-      if (allError) throw allError;
-      
-      // Get active members
-      const { data: activeMembers, error: activeError } = await supabase
-        .from('members')
-        .select('*')
-        .eq('club_id', user.activeClub.id)
-        .eq('status', 'Ativo')
-        .neq('status', 'Sistema');
-        
-      if (activeError) throw activeError;
-      
-      // Get inactive members
-      const { data: inactiveMembers, error: inactiveError } = await supabase
-        .from('members')
-        .select('*')
-        .eq('club_id', user.activeClub.id)
-        .eq('status', 'Inativo')
-        .neq('status', 'Sistema');
-        
-      if (inactiveError) throw inactiveError;
-      
-      // Calculate statistics
-      const totalCount = allMembers ? allMembers.length : 0;
-      const activeCount = activeMembers ? activeMembers.length : 0;
-      const inactiveCount = inactiveMembers ? inactiveMembers.length : 0;
-      const activityRate = totalCount > 0 ? (activeCount / totalCount) * 100 : 0;
-      
-      setStats({
-        totalMembers: totalCount,
-        activeMembers: activeCount,
-        inactiveMembers: inactiveCount,
-        activityRate: activityRate
-      });
-
-      // Calculate category distribution for active members with member details
-      if (activeMembers) {
-        const categoryCount: Record<string, number> = {};
-        const categoryMembers: Record<string, { id: string; name: string; nickname: string | null }[]> = {};
-        
-        // Count members by category and store member details
-        activeMembers.forEach(member => {
-          const category = member.category || 'Não categorizado';
-          
-          if (!categoryCount[category]) {
-            categoryCount[category] = 0;
-            categoryMembers[category] = [];
-          }
-          
-          categoryCount[category]++;
-          categoryMembers[category].push({
-            id: member.id,
-            name: member.name,
-            nickname: member.nickname
+        // Buscar estatísticas gerais dos membros usando RPC
+        const { data: statsData, error: statsError } = await supabase
+          .rpc<MemberStats>('get_member_stats', {
+            club_id: clubId
           });
-        });
-        
-        // Convert to array and calculate percentages
-        const distribution = Object.entries(categoryCount).map(([category, count]) => ({
-          category,
-          count,
-          percentage: (count / activeCount) * 100,
-          members: categoryMembers[category].sort((a, b) => a.name.localeCompare(b.name))
-        }));
-        
-        // Sort by count descending
-        distribution.sort((a, b) => b.count - a.count);
-        
-        setCategoryDistribution(distribution);
-      }
 
-      // Calculate membership duration statistics for active members
-      if (activeMembers && activeMembers.length > 0) {
-        const today = new Date();
-        const durationsInMonths: number[] = [];
-        const durationBrackets: Record<string, { 
-          count: number, 
-          order: number,
-          members: { id: string; name: string; nickname: string | null }[]
-        }> = {
-          "Menos de 1 ano": { count: 0, order: 1, members: [] },
-          "1-5 anos": { count: 0, order: 2, members: [] },
-          "6-10 anos": { count: 0, order: 3, members: [] },
-          "10-20 anos": { count: 0, order: 4, members: [] },
-          "20-30 anos": { count: 0, order: 5, members: [] },
-          "30-40 anos": { count: 0, order: 6, members: [] },
-          "Mais de 40 anos": { count: 0, order: 7, members: [] }
-        };
+        if (statsError) {
+          console.error('Stats Error:', statsError);
+          throw statsError;
+        }
 
-        // Calculate duration for each active member
-        activeMembers.forEach(member => {
-          if (member.registration_date) {
-            const regDate = new Date(member.registration_date);
-            const years = differenceInYears(today, regDate);
-            const months = differenceInMonths(today, regDate);
-            
-            durationsInMonths.push(months);
-            
-            // Member data for tooltip
-            const memberData = {
-              id: member.id,
-              name: member.name,
-              nickname: member.nickname
-            };
-            
-            // Categorize into brackets
-            if (years < 1) {
-              durationBrackets["Menos de 1 ano"].count++;
-              durationBrackets["Menos de 1 ano"].members.push(memberData);
-            } else if (years >= 1 && years <= 5) {
-              durationBrackets["1-5 anos"].count++;
-              durationBrackets["1-5 anos"].members.push(memberData);
-            } else if (years > 5 && years <= 10) {
-              durationBrackets["6-10 anos"].count++;
-              durationBrackets["6-10 anos"].members.push(memberData);
-            } else if (years > 10 && years <= 20) {
-              durationBrackets["10-20 anos"].count++;
-              durationBrackets["10-20 anos"].members.push(memberData);
-            } else if (years > 20 && years <= 30) {
-              durationBrackets["20-30 anos"].count++;
-              durationBrackets["20-30 anos"].members.push(memberData);
-            } else if (years > 30 && years <= 40) {
-              durationBrackets["30-40 anos"].count++;
-              durationBrackets["30-40 anos"].members.push(memberData);
-            } else {
-              durationBrackets["Mais de 40 anos"].count++;
-              durationBrackets["Mais de 40 anos"].members.push(memberData);
-            }
-          }
-        });
+        if (statsData) {
+          setStats(statsData);
+        }
 
-        // Calculate average membership duration in years
-        const totalMonths = durationsInMonths.reduce((sum, months) => sum + months, 0);
-        const averageMonths = durationsInMonths.length > 0 ? totalMonths / durationsInMonths.length : 0;
-        const averageYears = averageMonths / 12;
-        setAverageMembershipYears(averageYears);
+        // Calcular distribuição por categoria usando a função RPC
+        const { data: categoryData, error: categoryError } = await supabase
+          .rpc<CategoryDistributionResult[]>('get_category_distribution', {
+            club_id: clubId
+          });
 
-        // Convert to array format for display
-        const durations = Object.entries(durationBrackets)
-          .filter(([_, { count }]) => count > 0) // Only include brackets with members
-          .map(([label, { count, order, members }]) => ({
-            label,
-            count,
-            percentage: (count / activeCount) * 100,
-            order,
-            members: members.sort((a, b) => a.name.localeCompare(b.name))
-          }));
-
-        // Sort by the predefined order
-        durations.sort((a, b) => a.order - b.order);
-        
-        setMembershipDurations(durations);
-      }
-
-      // Calculate age distribution for active members
-      if (activeMembers && activeMembers.length > 0) {
-        const today = new Date();
-        const ages: number[] = [];
-        const ageBrackets: Record<string, { 
-          count: number, 
-          order: number,
-          members: { id: string; name: string; nickname: string | null }[]
-        }> = {
-          "Até 20 anos": { count: 0, order: 1, members: [] },
-          "20-30 anos": { count: 0, order: 2, members: [] },
-          "30-40 anos": { count: 0, order: 3, members: [] },
-          "40-50 anos": { count: 0, order: 4, members: [] },
-          "50-60 anos": { count: 0, order: 5, members: [] },
-          "60+ anos": { count: 0, order: 6, members: [] }
-        };
-
-        // Calculate age for each active member
-        activeMembers.forEach(member => {
-          if (member.birth_date) {
-            const birthDate = new Date(member.birth_date);
-            const age = differenceInYears(today, birthDate);
-            
-            ages.push(age);
-            
-            // Collect member for proper age bracket
-            const memberData = {
-              id: member.id,
-              name: member.name,
-              nickname: member.nickname
-            };
-            
-            // Categorize into age brackets
-            if (age <= 20) {
-              ageBrackets["Até 20 anos"].count++;
-              ageBrackets["Até 20 anos"].members.push(memberData);
-            } else if (age > 20 && age <= 30) {
-              ageBrackets["20-30 anos"].count++;
-              ageBrackets["20-30 anos"].members.push(memberData);
-            } else if (age > 30 && age <= 40) {
-              ageBrackets["30-40 anos"].count++;
-              ageBrackets["30-40 anos"].members.push(memberData);
-            } else if (age > 40 && age <= 50) {
-              ageBrackets["40-50 anos"].count++;
-              ageBrackets["40-50 anos"].members.push(memberData);
-            } else if (age > 50 && age <= 60) {
-              ageBrackets["50-60 anos"].count++;
-              ageBrackets["50-60 anos"].members.push(memberData);
-            } else {
-              ageBrackets["60+ anos"].count++;
-              ageBrackets["60+ anos"].members.push(memberData);
-            }
-          }
-        });
-
-        // Calculate average age
-        const totalAge = ages.reduce((sum, age) => sum + age, 0);
-        const avgAge = ages.length > 0 ? totalAge / ages.length : 0;
-        setAverageAge(avgAge);
-
-        // Convert to array format for display
-        const ageDistribution = Object.entries(ageBrackets)
-          .filter(([_, { count }]) => count > 0) // Only include brackets with members
-          .map(([ageRange, { count, order, members }]) => ({
-            ageRange,
-            count,
-            percentage: (count / activeCount) * 100,
-            order,
-            members: members.sort((a, b) => a.name.localeCompare(b.name))
-          }));
-
-        // Sort by the predefined order (youngest to oldest)
-        ageDistribution.sort((a, b) => a.order - b.order);
-        
-        setAgeDistribution(ageDistribution);
-      }
-
-      // Calculate top sponsors - UPDATED to include both active and inactive members
-      const { data: sponsorsData, error: sponsorsError } = await supabase
-        .from('members')
-        .select('sponsor_id')
-        .eq('club_id', user.activeClub.id)
-        .neq('status', 'Sistema')
-        .not('sponsor_id', 'is', null);
-        
-      if (sponsorsError) throw sponsorsError;
-      
-      if (sponsorsData && sponsorsData.length > 0) {
-        // Count sponsors
-        const sponsorCounts: Record<string, number> = {};
-        
-        sponsorsData.forEach(member => {
-          if (member.sponsor_id) {
-            sponsorCounts[member.sponsor_id] = (sponsorCounts[member.sponsor_id] || 0) + 1;
-          }
-        });
-        
-        // Get sponsor details including nicknames
-        const sponsorIds = Object.keys(sponsorCounts);
-        const { data: sponsorDetails, error: sponsorDetailsError } = await supabase
-          .from('members')
-          .select('id, name, nickname')
-          .in('id', sponsorIds)
-          .eq('club_id', user.activeClub.id);
-          
-        if (sponsorDetailsError) throw sponsorDetailsError;
-        
-        // Fetch godchildren for each sponsor
-        const godchildrenBySponsors: Record<string, { id: string; name: string; nickname: string | null }[]> = {};
-        
-        for (const sponsorId of sponsorIds) {
-          const { data: godchildren, error: godchildrenError } = await supabase
-            .from('members')
-            .select('id, name, nickname')
-            .eq('sponsor_id', sponsorId)
-            .eq('club_id', user.activeClub.id);
-            
-          if (godchildrenError) throw godchildrenError;
-          
-          if (godchildren) {
-            godchildrenBySponsors[sponsorId] = godchildren;
-          }
+        if (categoryError) {
+          console.error('Category Error:', categoryError);
+          throw categoryError;
         }
         
-        // Create sponsor data objects
-        let sponsorData: SponsorData[] = [];
-        
-        if (sponsorDetails) {
-          sponsorData = sponsorIds.map(id => {
-            const sponsor = sponsorDetails.find(s => s.id === id);
-            return {
-              sponsorId: id,
-              sponsorName: sponsor ? sponsor.name : 'Desconhecido',
-              sponsorNickname: sponsor ? sponsor.nickname : null,
-              count: sponsorCounts[id],
-              percentage: (sponsorCounts[id] / sponsorsData.length) * 100,
-              godchildren: godchildrenBySponsors[id] || []
-            };
-          });
-          
-          // Sort by count (descending)
-          sponsorData.sort((a, b) => b.count - a.count);
-          
-          // Take top 10 sponsors
-          setTopSponsors(sponsorData.slice(0, 10));
+        if (categoryData && Array.isArray(categoryData)) {
+          setCategoryDistribution(categoryData);
         }
+
+        // Calcular distribuição por idade usando RPC
+        const { data: ageData, error: ageError } = await supabase
+          .rpc<AgeDistribution[]>('get_age_distribution', {
+            club_id: clubId
+          });
+
+        if (ageError) {
+          console.error('Age Error:', ageError);
+          throw ageError;
+        }
+
+        if (ageData && Array.isArray(ageData)) {
+          setAgeDistribution(ageData);
+        }
+
+        // Buscar distribuição por tempo de associação
+        const { data: durationData, error: durationError } = await supabase.rpc('get_membership_duration', {
+          club_id: clubId
+        });
+
+        if (durationError) {
+          console.error('Duration Error:', durationError);
+          throw durationError;
+        }
+
+        if (durationData) {
+          setMembershipDuration(durationData);
+        }
+
+        // Buscar top padrinhos usando RPC
+        const { data: sponsorData, error: sponsorError } = await supabase
+          .rpc<TopSponsorResult[]>('get_top_sponsors', {
+            club_id: clubId,
+            limit_num: 10
+          });
+
+        if (sponsorError) {
+          console.error('Sponsor Error:', sponsorError);
+          throw sponsorError;
+        }
+        
+        if (sponsorData && Array.isArray(sponsorData)) {
+          setTopSponsors(sponsorData);
+        }
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: "Erro ao carregar estatísticas",
+          description: "Não foi possível carregar as estatísticas dos membros. Tente novamente mais tarde.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      toast({
-        title: "Erro ao carregar estatísticas",
-        description: error.message,
-        variant: "destructive"
-      });
-      console.error('Error fetching member stats:', error);
-    } finally {
-      setIsLoading(false);
+    };
+
+    if (clubId) {
+      fetchData();
     }
-  };
+  }, [clubId, toast]);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -416,7 +172,7 @@ const MemberStatistics = () => {
               {isLoading ? (
                 <div className="h-12 w-full animate-pulse bg-gray-200 rounded"></div>
               ) : (
-                <div className="text-3xl font-bold">{stats.totalMembers}</div>
+                <div className="text-3xl font-bold">{stats.total_members}</div>
               )}
               <p className="text-sm text-muted-foreground mt-1">
                 Excluindo membros do sistema
@@ -436,7 +192,7 @@ const MemberStatistics = () => {
               {isLoading ? (
                 <div className="h-12 w-full animate-pulse bg-gray-200 rounded"></div>
               ) : (
-                <div className="text-3xl font-bold text-green-600">{stats.activeMembers}</div>
+                <div className="text-3xl font-bold text-green-600">{stats.active_members}</div>
               )}
               <p className="text-sm text-muted-foreground mt-1">
                 Membros com status "Ativo"
@@ -456,7 +212,7 @@ const MemberStatistics = () => {
               {isLoading ? (
                 <div className="h-12 w-full animate-pulse bg-gray-200 rounded"></div>
               ) : (
-                <div className="text-3xl font-bold text-red-600">{stats.inactiveMembers}</div>
+                <div className="text-3xl font-bold text-red-600">{stats.inactive_members}</div>
               )}
               <p className="text-sm text-muted-foreground mt-1">
                 Membros com status "Inativo"
@@ -476,9 +232,7 @@ const MemberStatistics = () => {
               {isLoading ? (
                 <div className="h-12 w-full animate-pulse bg-gray-200 rounded"></div>
               ) : (
-                <div className="text-3xl font-bold text-amber-600">
-                  {stats.activityRate.toFixed(1)}%
-                </div>
+                <div className="text-3xl font-bold text-amber-600">{stats.activity_rate.toFixed(1)}%</div>
               )}
               <p className="text-sm text-muted-foreground mt-1">
                 Sócios Ativos / Total de Sócios
@@ -569,60 +323,52 @@ const MemberStatistics = () => {
                   ))}
                 </div>
               ) : ageDistribution.length > 0 ? (
-                <div className="space-y-4">
-                  {ageDistribution.map((ageBracket, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex justify-between items-center mb-1">
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-gray-700">{ageBracket.ageRange}</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button 
-                                type="button" 
-                                className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-gray-200 transition-colors"
-                                aria-label="Ver apelidos"
-                              >
-                                <Info className="h-4 w-4 text-gray-400" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" align="start" className="max-w-sm max-h-[300px] overflow-y-auto">
-                              <ul className="text-xs space-y-1">
-                                {ageBracket.members?.filter(member => member.nickname).map(member => (
-                                  <li key={member.id} className="flex items-center">
-                                    <span>{member.nickname}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </TooltipContent>
-                          </Tooltip>
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    {ageDistribution.map((age) => (
+                      <div key={age.order_num}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium">{age.age_range}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button 
+                                  type="button" 
+                                  className="ml-1 flex items-center justify-center h-5 w-5 rounded-full hover:bg-gray-100"
+                                  aria-label="Ver apelidos"
+                                >
+                                  <Info className="h-4 w-4 text-gray-400" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" align="start" className="max-w-sm max-h-[300px] overflow-y-auto">
+                                <ul className="text-xs space-y-1">
+                                  {age.members?.filter(member => member.nickname).map(member => (
+                                    <li key={member.id}>{member.nickname}</li>
+                                  ))}
+                                </ul>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <span className="text-sm text-gray-500">{age.count} sócios</span>
                         </div>
-                        <span className="text-sm text-gray-500">{ageBracket.count} sócios</span>
-                      </div>
-                      <div className="flex items-center gap-3">
                         <Progress 
-                          value={ageBracket.percentage} 
-                          className="h-4 flex-1"
-                          indicatorColor="#3b82f6" // blue-500
+                          value={age.percentage} 
+                          className="h-3"
+                          indicatorColor="#3b82f6"
                         />
                       </div>
+                    ))}
+                  </div>
+                  <div className="rounded-lg border border-gray-100 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Idade Média</span>
+                      <span className="text-sm text-blue-600">{ageDistribution[0].average_age} anos</span>
                     </div>
-                  ))}
-
-                  {/* Average Age */}
-                  <div className="bg-gray-50 p-4 rounded-lg border-t-2 border-blue-500 mt-4">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-medium text-gray-700">Idade Média</span>
-                      <span className="text-sm font-semibold text-blue-600">
-                        {averageAge.toFixed(1)} anos
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Progress 
-                        value={100} 
-                        className="h-4 flex-1"
-                        indicatorColor="#3b82f6" // blue-500
-                      />
-                    </div>
+                    <Progress 
+                      value={100} 
+                      className="h-3"
+                      indicatorColor="#3b82f6"
+                    />
                   </div>
                 </div>
               ) : (
@@ -633,7 +379,7 @@ const MemberStatistics = () => {
             </CardContent>
           </Card>
 
-          {/* Membership Duration Chart - UPDATED with tooltip */}
+          {/* Membership Duration Chart */}
           <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
             <CardHeader>
               <CardTitle className="text-xl font-medium flex items-center">
@@ -648,61 +394,53 @@ const MemberStatistics = () => {
                     <div key={i} className="h-16 w-full animate-pulse bg-gray-200 rounded"></div>
                   ))}
                 </div>
-              ) : membershipDurations.length > 0 ? (
-                <div className="space-y-4">
-                  {membershipDurations.map((duration, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex justify-between items-center mb-1">
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-gray-700">{duration.label}</span>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button 
-                                type="button" 
-                                className="flex items-center justify-center h-5 w-5 rounded-full hover:bg-gray-200 transition-colors"
-                                aria-label="Ver apelidos"
-                              >
-                                <Info className="h-4 w-4 text-gray-400" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="right" align="start" className="max-w-sm max-h-[300px] overflow-y-auto">
-                              <ul className="text-xs space-y-1">
-                                {duration.members?.filter(member => member.nickname).map(member => (
-                                  <li key={member.id} className="flex items-center">
-                                    <span>{member.nickname}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </TooltipContent>
-                          </Tooltip>
+              ) : membershipDuration.length > 0 ? (
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    {membershipDuration.map((duration) => (
+                      <div key={duration.order_num}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <span className="text-sm font-medium">{duration.duration_range}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button 
+                                  type="button" 
+                                  className="ml-1 flex items-center justify-center h-5 w-5 rounded-full hover:bg-gray-100"
+                                  aria-label="Ver apelidos"
+                                >
+                                  <Info className="h-4 w-4 text-gray-400" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" align="start" className="max-w-sm max-h-[300px] overflow-y-auto">
+                                <ul className="text-xs space-y-1">
+                                  {duration.members?.filter(member => member.nickname).map(member => (
+                                    <li key={member.id}>{member.nickname}</li>
+                                  ))}
+                                </ul>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                          <span className="text-sm text-gray-500">{duration.members?.length || 0} sócios</span>
                         </div>
-                        <span className="text-sm text-gray-500">{duration.count} sócios</span>
-                      </div>
-                      <div className="flex items-center gap-3">
                         <Progress 
                           value={duration.percentage} 
-                          className="h-4 flex-1"
-                          indicatorColor="#10b981" // emerald-500
+                          className="h-3"
+                          indicatorColor="#10b981"
                         />
                       </div>
+                    ))}
+                  </div>
+                  <div className="rounded-lg border border-gray-100 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">Tempo Médio</span>
+                      <span className="text-sm text-emerald-600">{membershipDuration[0].average_years} anos</span>
                     </div>
-                  ))}
-
-                  {/* Average Membership Duration */}
-                  <div className="bg-gray-50 p-4 rounded-lg border-t-2 border-emerald-500 mt-4">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-medium text-gray-700">Tempo Médio</span>
-                      <span className="text-sm font-semibold text-emerald-600">
-                        {averageMembershipYears.toFixed(1)} anos
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Progress 
-                        value={100} 
-                        className="h-4 flex-1"
-                        indicatorColor="#10b981" // emerald-500
-                      />
-                    </div>
+                    <Progress 
+                      value={100} 
+                      className="h-3"
+                      indicatorColor="#10b981"
+                    />
                   </div>
                 </div>
               ) : (
@@ -713,7 +451,7 @@ const MemberStatistics = () => {
             </CardContent>
           </Card>
 
-          {/* Top Sponsors Chart - UPDATED to show nicknames and tooltips */}
+          {/* Top Sponsors Chart */}
           <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
             <CardHeader>
               <CardTitle className="text-xl font-medium flex items-center">
@@ -735,7 +473,7 @@ const MemberStatistics = () => {
                       <div className="flex justify-between items-center mb-1">
                         <div className="flex items-center gap-1">
                           <span className="font-medium text-gray-700">
-                            {sponsor.sponsorNickname || sponsor.sponsorName}
+                            {sponsor.sponsor_nickname || sponsor.sponsor_name}
                           </span>
                           {sponsor.godchildren && sponsor.godchildren.length > 0 && (
                             <Tooltip>

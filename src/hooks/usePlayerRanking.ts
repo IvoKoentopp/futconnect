@@ -6,9 +6,9 @@ export interface PlayerRanking {
   id: string;
   name: string;
   nickname: string | null;
-  photoUrl: string | null;
   score: number;
   position: number;
+  gamesPlayed: number;
 }
 
 export const usePlayerRanking = (clubId: string | undefined, selectedYear: string = "all") => {
@@ -29,13 +29,13 @@ export const usePlayerRanking = (clubId: string | undefined, selectedYear: strin
         // Fetch player stats from the game performance service
         const playerStats = await gamePerformanceService.fetchPlayerStats(clubId, selectedYear, 'all');
         
-        // Get member IDs to fetch their photos
+        // Get member IDs to fetch their nicknames
         const memberIds = playerStats.map(player => player.id);
         
-        // Fetch member data from Supabase to get photos
+        // Fetch member data from Supabase to get nicknames
         const { data: members, error: membersError } = await supabase
           .from('members')
-          .select('id, photo_url, nickname')
+          .select('id, nickname')
           .in('id', memberIds);
           
         if (membersError) {
@@ -47,24 +47,23 @@ export const usePlayerRanking = (clubId: string | undefined, selectedYear: strin
         const memberMap = new Map();
         members?.forEach(member => {
           memberMap.set(member.id, {
-            photoUrl: member.photo_url,
             nickname: member.nickname
           });
         });
         
-        // Transform and limit to top 5 players with photos
+        // Transform and limit to top 5 players
         const transformedData = playerStats
           .slice(0, 5)
           .map(player => {
-            const memberData = memberMap.get(player.id) || { photoUrl: null, nickname: null };
+            const memberData = memberMap.get(player.id) || { nickname: null };
             
             return {
               id: player.id,
               name: player.name,
               nickname: memberData.nickname,
-              photoUrl: memberData.photoUrl,
               score: player.points,
-              position: player.position
+              position: player.position || 0,
+              gamesPlayed: player.games
             };
           });
         

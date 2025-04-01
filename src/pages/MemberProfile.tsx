@@ -57,7 +57,19 @@ const MemberProfile = () => {
       const { data, error } = await supabase
         .from('members')
         .select(`
-          *,
+          id,
+          name,
+          nickname,
+          email,
+          phone,
+          birth_date,
+          registration_date,
+          payment_start_date,
+          departure_date,
+          category,
+          status,
+          positions,
+          sponsor_id,
           godchildren:members(
             id,
             name,
@@ -214,13 +226,9 @@ const MemberProfile = () => {
                         onClick={() => selectMember(member)}
                       >
                         <Avatar className="h-8 w-8 mr-3">
-                          {member.photo_url ? (
-                            <AvatarImage src={member.photo_url} alt={member.name} />
-                          ) : (
-                            <AvatarFallback className="bg-primary/10">
-                              {member.name?.charAt(0)}
-                            </AvatarFallback>
-                          )}
+                          <AvatarFallback className="bg-primary/10">
+                            {member.name?.charAt(0)}
+                          </AvatarFallback>
                         </Avatar>
                         <div className="truncate">
                           <span className="font-medium block truncate">

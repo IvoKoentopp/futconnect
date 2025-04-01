@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActiveMembers } from '@/hooks/useActiveMembers';
@@ -11,6 +10,8 @@ import { usePlayerRanking } from '@/hooks/usePlayerRanking';
 import { useGameSummary } from '@/hooks/useGameSummary';
 import { useTopHighlights } from '@/hooks/useTopHighlights';
 import { useYearFilter } from '@/hooks/useYearFilter';
+import { DashboardCard } from '@/components/dashboard/dashboard-card';
+import { DashboardGrid } from '@/components/dashboard/dashboard-grid';
 import BirthdayCard from '@/components/BirthdayCard';
 import OverdueFeesTable from '@/components/OverdueFeesTable';
 import TopPlayersCard from '@/components/TopPlayersCard';
@@ -71,229 +72,127 @@ const ClubDashboard = () => {
       </div>
 
       {/* Primeira linha: Cards de estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {/* Sócios Ativos */}
-        <Card className="shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base md:text-lg flex items-center">
-              <Users className="mr-2 h-5 w-5 text-futconnect-600" />
-              Sócios Ativos
-            </CardTitle>
-            <CardDescription>Total de sócios ativos no clube</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingMembers ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-futconnect-600"></div>
-              </div>
-            ) : errorMembers ? (
-              <div className="text-red-500">Erro ao carregar sócios.</div>
-            ) : (
-              <>
-                <div className="text-3xl font-bold">{memberCount}</div>
-                <p className="text-sm text-muted-foreground">
-                  <TrendingUp className="mr-1 inline-block h-4 w-4 align-middle" />
-                  {newMembersThisMonth} novos sócios este mês
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      <DashboardGrid className="mb-6">
+        <DashboardCard
+          title="Sócios Ativos"
+          icon={Users}
+          isLoading={isLoadingMembers}
+          error={errorMembers}
+        >
+          <div className="text-3xl font-bold">{memberCount}</div>
+          <p className="text-sm text-muted-foreground">
+            <TrendingUp className="mr-1 inline-block h-4 w-4 align-middle" />
+            {newMembersThisMonth} novos sócios este mês
+          </p>
+        </DashboardCard>
 
-        {/* Jogos Realizados */}
-        <Card className="shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base md:text-lg flex items-center">
-              <Trophy className="mr-2 h-5 w-5 text-futconnect-600" />
-              Jogos Realizados
-            </CardTitle>
-            <CardDescription>Total de jogos realizados</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingGames ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-futconnect-600"></div>
-              </div>
-            ) : errorGames ? (
-              <div className="text-red-500">Erro ao carregar jogos.</div>
-            ) : (
-              <>
-                <div className="text-3xl font-bold">{gameCount}</div>
-                <p className="text-sm text-muted-foreground">
-                  <TrendingUp className="mr-1 inline-block h-4 w-4 align-middle" />
-                  {gamesThisMonth} jogos este mês
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <DashboardCard
+          title="Jogos Realizados"
+          icon={Trophy}
+          isLoading={isLoadingGames}
+          error={errorGames}
+        >
+          <div className="text-3xl font-bold">{gameCount}</div>
+          <p className="text-sm text-muted-foreground">
+            <TrendingUp className="mr-1 inline-block h-4 w-4 align-middle" />
+            {gamesThisMonth} jogos este mês
+          </p>
+        </DashboardCard>
 
-        {/* Saldo */}
-        <Card className="shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base md:text-lg flex items-center">
-              <CreditCard className="mr-2 h-5 w-5 text-futconnect-600" />
-              Saldo
-            </CardTitle>
-            <CardDescription>Saldo total do clube</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingBalance ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-futconnect-600"></div>
-              </div>
-            ) : errorBalance ? (
-              <div className="text-red-500">Erro ao carregar saldo.</div>
+        <DashboardCard
+          title="Saldo"
+          icon={CreditCard}
+          isLoading={isLoadingBalance}
+          error={errorBalance}
+        >
+          <div className="text-3xl font-bold">{formatCurrency(totalBalance)}</div>
+          <p className="text-sm text-muted-foreground">
+            {monthlyIncrease >= 0 ? (
+              <ArrowUp className="mr-1 inline-block h-4 w-4 align-middle text-green-500" />
             ) : (
-              <>
-                <div className="text-3xl font-bold">{formatCurrency(totalBalance)}</div>
-                <p className="text-sm text-muted-foreground">
-                  {monthlyIncrease >= 0 ? (
-                    <ArrowUp className="mr-1 inline-block h-4 w-4 align-middle text-green-500" />
-                  ) : (
-                    <ArrowDown className="mr-1 inline-block h-4 w-4 align-middle text-red-500" />
-                  )}
-                  {formatCurrency(Math.abs(monthlyIncrease))} este mês
-                </p>
-              </>
+              <ArrowDown className="mr-1 inline-block h-4 w-4 align-middle text-red-500" />
             )}
-          </CardContent>
-        </Card>
-      </div>
+            {formatCurrency(Math.abs(monthlyIncrease))} este mês
+          </p>
+        </DashboardCard>
+      </DashboardGrid>
 
       {/* Segunda linha: Cards de performance */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {/* Top Participação */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Top Participação</CardTitle>
-            <CardDescription>Jogadores com maior participação</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingTopPlayers ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-futconnect-600"></div>
-              </div>
-            ) : errorTopPlayers ? (
-              <div className="text-red-500">Erro ao carregar top jogadores.</div>
-            ) : (
-              <TopPlayersCard 
-                topPlayers={topPlayers}
-                isLoading={isLoadingTopPlayers}
-                error={errorTopPlayers}
-              />
-            )}
-          </CardContent>
-        </Card>
+      <DashboardGrid className="mb-6">
+        <DashboardCard
+          title="Top Participação"
+          description="Jogadores com maior participação"
+          isLoading={isLoadingTopPlayers}
+          error={errorTopPlayers}
+        >
+          <TopPlayersCard 
+            topPlayers={topPlayers}
+            isLoading={isLoadingTopPlayers}
+            error={errorTopPlayers}
+          />
+        </DashboardCard>
 
-        {/* Top Desempenho */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Top Desempenho</CardTitle>
-            <CardDescription>Jogadores com melhor desempenho</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingPlayerRanking ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-futconnect-600"></div>
-              </div>
-            ) : errorPlayerRanking ? (
-              <div className="text-red-500">Erro ao carregar ranking.</div>
-            ) : (
-              <TopPlayerRankingCard 
-                topPlayers={topRankedPlayers}
-                isLoading={isLoadingPlayerRanking}
-                error={errorPlayerRanking}
-              />
-            )}
-          </CardContent>
-        </Card>
+        <DashboardCard
+          title="Top Desempenho"
+          description="Jogadores com melhor desempenho"
+          isLoading={isLoadingPlayerRanking}
+          error={errorPlayerRanking}
+        >
+          <TopPlayerRankingCard 
+            topPlayers={topRankedPlayers}
+            isLoading={isLoadingPlayerRanking}
+            error={errorPlayerRanking}
+          />
+        </DashboardCard>
 
-        {/* Top Destaques */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Top Destaques</CardTitle>
-            <CardDescription>Jogadores mais votados como destaque</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingHighlights ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-futconnect-600"></div>
-              </div>
-            ) : errorHighlights ? (
-              <div className="text-red-500">Erro ao carregar destaques.</div>
-            ) : (
-              <TopHighlightsCard 
-                topHighlights={topHighlights}
-                isLoading={isLoadingHighlights}
-                error={errorHighlights}
-              />
-            )}
-          </CardContent>
-        </Card>
-      </div>
+        <DashboardCard
+          title="Top Destaques"
+          description="Jogadores mais votados como destaque"
+          isLoading={isLoadingHighlights}
+          error={errorHighlights}
+        >
+          <TopHighlightsCard 
+            topHighlights={topHighlights}
+            isLoading={isLoadingHighlights}
+            error={errorHighlights}
+          />
+        </DashboardCard>
+      </DashboardGrid>
 
       {/* Terceira linha: Resumo, Aniversariantes e Mensalidades */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Resumo dos Jogos */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Resumo dos Jogos</CardTitle>
-            <CardDescription>Estatísticas gerais dos jogos</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingGameSummary ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-futconnect-600"></div>
-              </div>
-            ) : errorGameSummary ? (
-              <div className="text-red-500">Erro ao carregar resumo dos jogos.</div>
-            ) : (
-              <GameSummaryCard
-                averageGoalsPerGame={averageGoalsPerGame}
-                averagePlayersPerGame={averagePlayersPerGame}
-                completionRate={completionRate}
-                isLoading={isLoadingGameSummary}
-                error={errorGameSummary}
-              />
-            )}
-          </CardContent>
-        </Card>
+      <DashboardGrid>
+        <DashboardCard
+          title="Resumo dos Jogos"
+          isLoading={isLoadingGameSummary}
+          error={errorGameSummary}
+        >
+          <GameSummaryCard
+            averageGoalsPerGame={averageGoalsPerGame}
+            averagePlayersPerGame={averagePlayersPerGame}
+            completionRate={completionRate}
+            isLoading={isLoadingGameSummary}
+            error={errorGameSummary}
+          />
+        </DashboardCard>
 
-        {/* Aniversariantes */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Aniversariantes</CardTitle>
-            <CardDescription>Aniversariantes do mês</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingBirthdays ? (
-              <div className="flex justify-center items-center h-24">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-futconnect-600"></div>
-              </div>
-            ) : errorBirthdays ? (
-              <div className="text-red-500">Erro ao carregar aniversariantes.</div>
-            ) : (
-              <BirthdayCard 
-                birthdaysByMonth={birthdays}
-                isLoading={isLoadingBirthdays}
-                currentMonth={new Date().getMonth() + 1}
-              />
-            )}
-          </CardContent>
-        </Card>
+        <DashboardCard
+          title="Aniversariantes"
+          isLoading={isLoadingBirthdays}
+          error={errorBirthdays}
+        >
+          <BirthdayCard 
+            birthdaysByMonth={birthdays}
+            isLoading={isLoadingBirthdays}
+            currentMonth={new Date().getMonth() + 1}
+          />
+        </DashboardCard>
 
-        {/* Mensalidades em Atraso */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle>Mensalidades em Atraso</CardTitle>
-            <CardDescription>Sócios com pagamentos pendentes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {clubId && <OverdueFeesTable clubId={clubId} />}
-          </CardContent>
-        </Card>
-      </div>
+        <DashboardCard
+          title="Mensalidades em Atraso"
+        >
+          {clubId && <OverdueFeesTable clubId={clubId} />}
+        </DashboardCard>
+      </DashboardGrid>
     </div>
   );
 };

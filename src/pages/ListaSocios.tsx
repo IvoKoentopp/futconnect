@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,12 +12,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import * as XLSX from 'xlsx';
 import { 
   Search, 
-  User, 
-  Calendar, 
-  Tag, 
-  Users, 
-  BadgeCheck, 
-  X,
   Phone,
   Mail,
   Download,
@@ -28,11 +22,11 @@ import {
   Save,
   Upload,
   ShieldAlert,
-  Key
+  Key,
+  User,
+  X
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { format, parse } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,7 +49,6 @@ import { DateInput } from '@/components/ui/date-input';
 import { 
   Dialog, 
   DialogContent, 
-  DialogDescription, 
   DialogHeader, 
   DialogTitle 
 } from "@/components/ui/dialog";
@@ -143,11 +136,9 @@ const ListaSocios = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMember, setSelectedMember] = useState<FormattedMember | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<FormattedMember | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editedMember, setEditedMember] = useState<FormattedMember | null>(null);
   const [availableSponsors, setAvailableSponsors] = useState<DatabaseMember[]>([]);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -180,21 +171,24 @@ const ListaSocios = () => {
     try {
       const { data: membersData, error } = await supabase
         .from('members')
-        .select('*, sponsor:sponsor_id(name, nickname)')
+        .select('id, name, nickname, email, phone, birth_date, photo_url, registration_date, payment_start_date, departure_date, category, status, sponsor_id, positions, club_id, sponsor:sponsor_id(name, nickname)')
         .eq('club_id', user.activeClub.id)
         .order('name');
       
       if (error) throw error;
       
+      // Corrigindo o tipo dos dados retornados
+      const typedMembersData = membersData as unknown as DatabaseMember[];
+      
       // Format the data for display - ensuring dates are handled correctly
-      const formattedMembers: FormattedMember[] = (membersData as DatabaseMember[]).map(member => {
+      const formattedMembers: FormattedMember[] = typedMembersData.map(member => {
         return {
           id: member.id,
           name: member.name,
           nickname: member.nickname || '-',
           email: member.email,
           phone: member.phone || '-',
-          photo: member.photo_url,
+          photo: member.photo_url || null,
           birthDate: parseExactDate(member.birth_date),
           registrationDate: parseExactDate(member.registration_date),
           paymentStartDate: parseExactDate(member.payment_start_date),
@@ -283,15 +277,12 @@ const ListaSocios = () => {
       return;
     }
 
-    if (!isEditMode && selectedMember) {
-      setEditedMember({...selectedMember});
-    }
     setIsEditMode(!isEditMode);
   };
 
   // Handle input change
   const handleInputChange = (field: string, value: any) => {
-    setEditedMember(prev => ({
+    setSelectedMember(prev => ({
       ...prev,
       [field]: value
     }));
@@ -305,9 +296,9 @@ const ListaSocios = () => {
     // Preview the image
     const reader = new FileReader();
     reader.onload = (event) => {
-      if (event.target?.result) {
-        setEditedMember(prev => ({
-          ...prev,
+      if (event.target?.result && selectedMember) {
+        setSelectedMember(prev => ({
+          ...prev!,
           photo: event.target.result as string
         }));
       }
@@ -318,110 +309,135 @@ const ListaSocios = () => {
 
   // Handle saving changes
   const handleSaveChanges = async () => {
-    if (!editedMember) return;
-
-    // Verifica se o usuário é administrador ou se é o próprio sócio
-    const canEditMember = canEdit || (selectedMember && user?.email === selectedMember.email);
+    if (!selectedMember) return;
     
-    if (!canEditMember) {
-      toast({
-        variant: "destructive",
-        title: "Acesso negado",
-        description: "Você só pode editar suas próprias informações.",
-      });
-      return;
-    }
-
-    // Se não for administrador, limita os campos que podem ser editados
-    if (!canEdit && user?.email === selectedMember.email) {
-      const allowedFields = ['nickname', 'email', 'phone', 'birth_date', 'positions'];
-      const updateData: any = {};
+    try {
+      setIsLoading(true);
       
-      allowedFields.forEach(field => {
-        switch (field) {
-          case 'nickname':
-            updateData.nickname = editedMember.nickname === '-' ? null : editedMember.nickname;
-            break;
-          case 'email':
-            updateData.email = editedMember.email;
-            break;
-          case 'phone':
-            updateData.phone = editedMember.phone === '-' ? null : editedMember.phone;
-            break;
-          case 'birth_date':
-            updateData.birth_date = editedMember.birthDate instanceof Date ? editedMember.birthDate.toISOString() : editedMember.birthDate;
-            break;
-          case 'positions':
-            updateData.positions = editedMember.positions || [];
-            break;
-        }
-      });
+      // Upload photo if changed
+      let photoUrl = selectedMember.photo;
+      if (photoFile) {
+        const fileExt = photoFile.name.split('.').pop();
+        const filePath = `${user?.activeClub?.id}/members/${selectedMember.id}/photo.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('photos')
+          .upload(filePath, photoFile, {
+            upsert: true
+          });
+          
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('photos')
+          .getPublicUrl(filePath);
+          
+        photoUrl = publicUrl;
+      }
+      
+      // Update member data
+      const updatedMember = {
+        name: selectedMember.name,
+        nickname: selectedMember.nickname === '-' ? null : selectedMember.nickname,
+        email: selectedMember.email,
+        phone: selectedMember.phone === '-' ? null : selectedMember.phone,
+        birth_date: selectedMember.birthDate?.toISOString().split('T')[0],
+        registration_date: selectedMember.registrationDate?.toISOString().split('T')[0],
+        payment_start_date: selectedMember.paymentStartDate?.toISOString().split('T')[0],
+        departure_date: selectedMember.departureDate?.toISOString().split('T')[0],
+        category: selectedMember.category,
+        status: selectedMember.status,
+        sponsor_id: selectedMember.sponsorId || null,
+        positions: selectedMember.positions || [],
+        photo_url: photoUrl
+      };
+      
+      // Verifica se o usuário é administrador ou se é o próprio sócio
+      const canEditMember = canEdit || (selectedMember && user?.email === selectedMember.email);
+      
+      if (!canEditMember) {
+        toast({
+          variant: "destructive",
+          title: "Acesso negado",
+          description: "Você só pode editar suas próprias informações.",
+        });
+        return;
+      }
 
+      // Se não for administrador, limita os campos que podem ser editados
+      if (!canEdit && user?.email === selectedMember.email) {
+        const allowedFields = ['nickname', 'email', 'phone', 'birth_date', 'positions'];
+        const updateData: any = {};
+        
+        allowedFields.forEach(field => {
+          switch (field) {
+            case 'nickname':
+              updateData.nickname = selectedMember.nickname === '-' ? null : selectedMember.nickname;
+              break;
+            case 'email':
+              updateData.email = selectedMember.email;
+              break;
+            case 'phone':
+              updateData.phone = selectedMember.phone === '-' ? null : selectedMember.phone;
+              break;
+            case 'birth_date':
+              updateData.birth_date = selectedMember.birthDate instanceof Date ? selectedMember.birthDate.toISOString() : selectedMember.birthDate;
+              break;
+            case 'positions':
+              updateData.positions = selectedMember.positions || [];
+              break;
+          }
+        });
+
+        try {
+          const { error } = await supabase
+            .from('members')
+            .update(updateData)
+            .eq('id', selectedMember.id);
+          
+          if (error) throw error;
+          
+          toast({
+            title: "Perfil atualizado",
+            description: "Suas informações foram atualizadas com sucesso.",
+          });
+          
+          fetchMembers();
+          setIsEditMode(false);
+        } catch (error: any) {
+          console.error("Erro ao atualizar sócio:", error);
+          toast({
+            variant: "destructive",
+            title: "Erro",
+            description: `Erro ao atualizar perfil: ${error.message}`,
+          });
+        }
+        return;
+      }
+      
       try {
         const { error } = await supabase
           .from('members')
-          .update(updateData)
-          .eq('id', editedMember.id);
+          .update(updatedMember)
+          .eq('id', selectedMember.id);
         
         if (error) throw error;
         
         toast({
-          title: "Perfil atualizado",
-          description: "Suas informações foram atualizadas com sucesso.",
+          title: "Sócio atualizado",
+          description: `${selectedMember.name} foi atualizado com sucesso.`,
         });
         
         fetchMembers();
-        setSelectedMember(editedMember);
         setIsEditMode(false);
       } catch (error: any) {
         console.error("Erro ao atualizar sócio:", error);
         toast({
           variant: "destructive",
           title: "Erro",
-          description: `Erro ao atualizar perfil: ${error.message}`,
+          description: `Erro ao atualizar sócio: ${error.message}`,
         });
       }
-      return;
-    }
-    
-    try {
-      // Format dates for the database
-      const formatDateForDB = (date: Date | null | undefined) => {
-        if (!date) return null;
-        return date instanceof Date ? date.toISOString() : date;
-      };
-
-      const updateData = {
-        name: editedMember.name,
-        nickname: editedMember.nickname === '-' ? null : editedMember.nickname,
-        email: editedMember.email,
-        phone: editedMember.phone === '-' ? null : editedMember.phone,
-        birth_date: formatDateForDB(editedMember.birthDate),
-        registration_date: formatDateForDB(editedMember.registrationDate),
-        payment_start_date: formatDateForDB(editedMember.paymentStartDate),
-        departure_date: formatDateForDB(editedMember.departureDate),
-        category: editedMember.category,
-        status: editedMember.status,
-        sponsor_id: editedMember.sponsorId || null,
-        positions: editedMember.positions || [],
-        photo_url: editedMember.photo || null
-      };
-      
-      const { error } = await supabase
-        .from('members')
-        .update(updateData)
-        .eq('id', editedMember.id);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Sócio atualizado",
-        description: `${editedMember.name} foi atualizado com sucesso.`,
-      });
-      
-      fetchMembers();
-      setSelectedMember(editedMember);
-      setIsEditMode(false);
     } catch (error: any) {
       console.error("Erro ao atualizar sócio:", error);
       toast({
@@ -429,6 +445,8 @@ const ListaSocios = () => {
         title: "Erro",
         description: `Erro ao atualizar sócio: ${error.message}`,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -602,13 +620,9 @@ const ListaSocios = () => {
                     >
                       <div className="flex items-center gap-3">
                         <Avatar className="h-12 w-12">
-                          {member.photo ? (
-                            <AvatarImage src={member.photo} alt={member.name} />
-                          ) : (
-                            <AvatarFallback className="bg-futconnect-100 text-futconnect-600">
-                              {member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                            </AvatarFallback>
-                          )}
+                          <AvatarFallback className="bg-futconnect-100 text-futconnect-600">
+                            {member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
                           <h3 className="font-medium text-gray-900">{member.name}</h3>
@@ -671,13 +685,9 @@ const ListaSocios = () => {
                         >
                           <TableCell>
                             <Avatar className="h-10 w-10">
-                              {member.photo ? (
-                                <AvatarImage src={member.photo} alt={member.name} />
-                              ) : (
-                                <AvatarFallback className="bg-futconnect-100 text-futconnect-600">
-                                  {member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                                </AvatarFallback>
-                              )}
+                              <AvatarFallback className="bg-futconnect-100 text-futconnect-600">
+                                {member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                              </AvatarFallback>
                             </Avatar>
                           </TableCell>
                           <TableCell className="font-medium">{member.name}</TableCell>
@@ -750,9 +760,6 @@ const ListaSocios = () => {
             <>
               <DialogHeader className="pb-4">
                 <DialogTitle className="text-2xl">Detalhes do Sócio</DialogTitle>
-                <DialogDescription>
-                  Informações completas do sócio
-                </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-6">
@@ -762,11 +769,11 @@ const ListaSocios = () => {
                     <div className="mb-3">
                       <label htmlFor="photo-upload" className="cursor-pointer">
                         <Avatar className="h-28 w-28 mb-2 relative group">
-                          {editedMember?.photo ? (
-                            <AvatarImage src={editedMember.photo} alt={editedMember.name} />
+                          {selectedMember?.photo ? (
+                            <AvatarImage src={selectedMember.photo} alt={selectedMember.name} />
                           ) : (
                             <AvatarFallback className="bg-futconnect-100 text-futconnect-600 text-3xl">
-                              {editedMember?.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                              {selectedMember?.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                             </AvatarFallback>
                           )}
                           <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
@@ -798,7 +805,7 @@ const ListaSocios = () => {
                   {isEditMode ? (
                     <Input 
                       className="text-center font-bold text-xl mb-1" 
-                      value={editedMember?.name}
+                      value={selectedMember?.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
                     />
                   ) : (
@@ -807,7 +814,7 @@ const ListaSocios = () => {
                   {isEditMode ? (
                     <Input 
                       className="text-center text-gray-500 mb-1" 
-                      value={editedMember?.nickname !== '-' ? editedMember.nickname : ''}
+                      value={selectedMember?.nickname !== '-' ? selectedMember.nickname : ''}
                       onChange={(e) => handleInputChange('nickname', e.target.value || '-')}
                       placeholder="Apelido"
                     />
@@ -831,7 +838,7 @@ const ListaSocios = () => {
                         {isEditMode ? (
                           <Input 
                             className="h-8 text-sm" 
-                            value={editedMember?.name}
+                            value={selectedMember?.name}
                             onChange={(e) => handleInputChange('name', e.target.value)}
                           />
                         ) : (
@@ -844,7 +851,7 @@ const ListaSocios = () => {
                         {isEditMode ? (
                           <Input 
                             className="h-8 text-sm" 
-                            value={editedMember?.nickname !== '-' ? editedMember.nickname : ''}
+                            value={selectedMember?.nickname !== '-' ? selectedMember.nickname : ''}
                             onChange={(e) => handleInputChange('nickname', e.target.value || '-')}
                           />
                         ) : (
@@ -856,7 +863,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Data de Nascimento:</span>
                         {isEditMode ? (
                           <DateInput 
-                            value={editedMember?.birthDate}
+                            value={selectedMember?.birthDate}
                             onChange={date => handleInputChange('birthDate', date)}
                             placeholder="DD/MM/AAAA"
                             className="h-8 text-sm"
@@ -874,7 +881,7 @@ const ListaSocios = () => {
                           <div className="flex flex-wrap gap-2">
                             {['Goleiro', 'Defensor', 'Meio', 'Atacante'].map(position => {
                               const positionKey = position.toLowerCase();
-                              const isSelected = editedMember?.positions?.includes(positionKey);
+                              const isSelected = selectedMember?.positions?.includes(positionKey);
                               
                               return (
                                 <Button
@@ -885,8 +892,8 @@ const ListaSocios = () => {
                                   className="h-7 text-xs"
                                   onClick={() => {
                                     const updatedPositions = isSelected
-                                      ? editedMember.positions.filter((p: string) => p !== positionKey)
-                                      : [...(editedMember.positions || []), positionKey];
+                                      ? selectedMember.positions.filter((p: string) => p !== positionKey)
+                                      : [...(selectedMember.positions || []), positionKey];
                                     
                                     // Limit to 2 positions
                                     if (!isSelected && updatedPositions.length > 2) {
@@ -932,7 +939,7 @@ const ListaSocios = () => {
                         {isEditMode ? (
                           <Input 
                             className="h-8 text-sm" 
-                            value={editedMember?.email}
+                            value={selectedMember?.email}
                             onChange={(e) => handleInputChange('email', e.target.value)}
                             type="email"
                           />
@@ -946,7 +953,7 @@ const ListaSocios = () => {
                         {isEditMode ? (
                           <Input 
                             className="h-8 text-sm" 
-                            value={editedMember?.phone !== '-' ? editedMember.phone : ''}
+                            value={selectedMember?.phone !== '-' ? selectedMember.phone : ''}
                             onChange={(e) => handleInputChange('phone', e.target.value || '-')}
                           />
                         ) : (
@@ -968,7 +975,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Categoria:</span>
                         {isEditMode ? (
                           <Select 
-                            value={editedMember?.category} 
+                            value={selectedMember?.category} 
                             onValueChange={(value) => handleInputChange('category', value)}
                           >
                             <SelectTrigger className="h-8 text-sm">
@@ -989,7 +996,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Data de Cadastro:</span>
                         {isEditMode ? (
                           <DateInput 
-                            value={editedMember?.registrationDate} 
+                            value={selectedMember?.registrationDate} 
                             onChange={(date) => handleInputChange('registrationDate', date)}
                             placeholder="DD/MM/AAAA"
                             className="h-8"
@@ -1005,7 +1012,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Início de Pagamento:</span>
                         {isEditMode ? (
                           <DateInput 
-                            value={editedMember?.paymentStartDate} 
+                            value={selectedMember?.paymentStartDate} 
                             onChange={(date) => handleInputChange('paymentStartDate', date)}
                             placeholder="DD/MM/AAAA"
                             className="h-8"
@@ -1021,7 +1028,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Data de Saída:</span>
                         {isEditMode ? (
                           <DateInput 
-                            value={editedMember?.departureDate} 
+                            value={selectedMember?.departureDate} 
                             onChange={(date) => handleInputChange('departureDate', date)}
                             placeholder="DD/MM/AAAA"
                             className="h-8"
@@ -1037,7 +1044,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Status:</span>
                         {isEditMode ? (
                           <Select 
-                            value={editedMember?.status} 
+                            value={selectedMember?.status} 
                             onValueChange={(value) => handleInputChange('status', value)}
                           >
                             <SelectTrigger className="h-8 text-sm">
@@ -1061,7 +1068,7 @@ const ListaSocios = () => {
                         <span className="text-sm text-gray-500">Padrinho:</span>
                         {isEditMode ? (
                           <Select 
-                            value={editedMember?.sponsorId || "none"} 
+                            value={selectedMember?.sponsorId || "none"} 
                             onValueChange={(value) => handleInputChange('sponsorId', value === "none" ? null : value)}
                           >
                             <SelectTrigger className="h-8 text-sm">
@@ -1070,7 +1077,7 @@ const ListaSocios = () => {
                             <SelectContent>
                               <SelectItem value="none">Nenhum</SelectItem>
                               {availableSponsors
-                                .filter(sponsor => sponsor.id !== editedMember?.id) // Can't sponsor self
+                                .filter(sponsor => sponsor.id !== selectedMember?.id) // Can't sponsor self
                                 .map(sponsor => (
                                   <SelectItem key={sponsor.id} value={sponsor.id}>
                                     {sponsor.nickname || sponsor.name}
@@ -1104,7 +1111,7 @@ const ListaSocios = () => {
                       </Button>
                       <Button 
                         onClick={handleSaveChanges}
-                        disabled={!editedMember?.name || !editedMember?.email}
+                        disabled={!selectedMember?.name || !selectedMember?.email}
                       >
                         <Save className="mr-2 h-4 w-4" />
                         Salvar

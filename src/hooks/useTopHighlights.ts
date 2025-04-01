@@ -5,7 +5,6 @@ export type TopHighlight = {
   id: string;
   name: string;
   nickname: string | null;
-  photoUrl: string | null;
   highlightCount: number;
   position: number;
 };
@@ -99,7 +98,6 @@ export const useTopHighlights = (clubId: string | undefined, selectedYear: strin
               id: member.id,
               name: member.name,
               nickname: member.nickname,
-              photoUrl: member.photo_url,
               highlightCount: 0,
               position: 0
             };
