@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,6 +13,7 @@ import {
   TrendingUp,
   UserCircle,
   HelpCircle,
+  FileText,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -34,6 +34,12 @@ export function Sidebar({ appMode = 'sales' }: SidebarProps) {
           href: "/club",
           icon: Home,
           active: pathname === "/club",
+        },
+        {
+          title: "Documentos",
+          href: "/club/documents",
+          icon: FileText,
+          active: pathname.includes("/documents"),
         },
         {
           title: "Sócios",

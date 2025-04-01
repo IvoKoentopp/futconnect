@@ -37,6 +37,9 @@ import GameConfirmation from "./pages/GameConfirmation";
 import ConfirmationSuccess from "./pages/ConfirmationSuccess";
 import Sponsors from "./pages/Sponsors";
 import UserGuide from "./pages/UserGuide";
+import { StatutePage } from "@/pages/club/documents/StatutePage";
+import { AnthemPage } from "@/pages/club/documents/AnthemPage";
+import { InvitationPage } from "@/pages/club/documents/InvitationPage";
 import DebugLogger from './components/DebugLogger';
 import { SafeThemeProvider } from './components/SafeThemeProvider';
 
@@ -137,6 +140,27 @@ const App = () => (
                 <ProtectedRoute>
                   <AdminLayout appMode="club">
                     <ClubDashboard />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/club/documents/statute" element={
+                <ProtectedRoute>
+                  <AdminLayout appMode="club">
+                    <StatutePage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/club/documents/anthem" element={
+                <ProtectedRoute>
+                  <AdminLayout appMode="club">
+                    <AnthemPage />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/club/documents/invitation" element={
+                <ProtectedRoute>
+                  <AdminLayout appMode="club">
+                    <InvitationPage />
                   </AdminLayout>
                 </ProtectedRoute>
               } />

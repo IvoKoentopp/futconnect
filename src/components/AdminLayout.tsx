@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Users, Calendar, DollarSign, Settings, LogOut, Menu, X, User, FileText, ShoppingCart, Settings as SettingsIcon, UserPlus, List, PlusCircle, BarChart, ListChecks, Trophy, BarChart2, UserCog, Receipt, Award, Star, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, DollarSign, Settings, LogOut, Menu, X, User, FileText, ShoppingCart, Settings as SettingsIcon, UserPlus, List, PlusCircle, BarChart, ListChecks, Trophy, BarChart2, UserCog, Receipt, Award, Star, HelpCircle, Music, Mail } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -13,6 +13,22 @@ const clubNavItems = [{
   name: 'Dashboard',
   path: '/club',
   icon: <LayoutDashboard size={20} />
+}, {
+  name: 'Documentos',
+  icon: <FileText size={20} />,
+  submenu: [{
+    name: 'Estatuto',
+    path: '/club/documents/statute',
+    icon: <FileText size={16} />
+  }, {
+    name: 'Hino',
+    path: '/club/documents/anthem',
+    icon: <Music size={16} />
+  }, {
+    name: 'Convite',
+    path: '/club/documents/invitation',
+    icon: <Mail size={16} />
+  }]
 }, {
   name: 'Sócios',
   icon: <Users size={20} />,

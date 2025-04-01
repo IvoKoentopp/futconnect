@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -44,6 +43,7 @@ const Navbar = () => {
 
   const adminLinks = [
     { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Documentos', path: '/documents' },
     { name: 'Vendas', path: '/sales' },
     { name: 'Configurações', path: '/settings' }
   ];

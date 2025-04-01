@@ -70,8 +70,8 @@ export const gamePerformanceService = {
         const startDate = new Date(year, month - 1, 1).toISOString();
         const endDate = new Date(year, month, 0).toISOString();
         query = query
-          .gte('created_at', startDate)
-          .lt('created_at', endDate);
+          .gte('games.created_at', startDate)
+          .lt('games.created_at', endDate);
       }
 
       const { data: gameEvents, error: eventsError } = await query;
@@ -187,15 +187,12 @@ export const gamePerformanceService = {
   
   async fetchPlayerStats(clubId: string, year: string | number, month: string | number | 'all'): Promise<PlayerStats[]> {
     try {
-      // 1. Buscar todos os eventos do período (incluindo jogadores inativos para calcular placares)
-      let query = supabase
+      // 1. Primeiro buscar os eventos do período para identificar jogos com estatísticas
+      let eventsQuery = supabase
         .from('game_events')
-        .select(`
-          *,
-          games!inner(club_id, id),
-          member:members!inner(id, nickname, status)
-        `)
-        .eq('games.club_id', clubId);
+        .select('game_id, games!inner(club_id)')
+        .eq('games.club_id', clubId)
+        .not('event_type', 'is', null);
 
       // Aplicar filtro de data apenas se não for 'all'
       if (year !== 'all' && month !== 'all') {
@@ -210,16 +207,81 @@ export const gamePerformanceService = {
           0
         ).toISOString();
 
-        query = query
-          .gte('created_at', startDate)
-          .lt('created_at', endDate);
+        eventsQuery = eventsQuery
+          .gte('games.created_at', startDate)
+          .lt('games.created_at', endDate);
       }
 
-      const { data: gameEvents, error: eventsError } = await query;
+      const { data: gamesWithEvents, error: eventsError } = await eventsQuery;
+      if (eventsError) {
+        console.error('Error fetching games with events:', eventsError);
+        throw eventsError;
+      }
 
-      if (eventsError) throw eventsError;
+      // Se não houver jogos com eventos, retornar array vazio
+      if (!gamesWithEvents || gamesWithEvents.length === 0) {
+        console.log('No games with events found for the period');
+        return [];
+      }
 
-      // 2. Agrupar eventos por jogo
+      // Obter IDs únicos dos jogos que têm eventos
+      const gameIdsWithEvents = [...new Set(gamesWithEvents.map(e => e.game_id))];
+      console.log(`Found ${gameIdsWithEvents.length} games with events`);
+
+      // 2. Buscar jogos que têm eventos e seus participantes
+      const { data: games, error: gamesError } = await supabase
+        .from('games')
+        .select(`
+          id,
+          club_id,
+          created_at,
+          game_participants:game_participants(
+            id,
+            game_id,
+            member_id,
+            status,
+            member:members(
+              id,
+              nickname,
+              status
+            )
+          )
+        `)
+        .eq('club_id', clubId)
+        .in('id', gameIdsWithEvents);
+
+      if (gamesError) {
+        console.error('Error fetching games:', gamesError);
+        throw gamesError;
+      }
+
+      // Se não houver jogos, retornar array vazio
+      if (!games || games.length === 0) {
+        console.log('No games found');
+        return [];
+      }
+
+      console.log(`Found ${games.length} games with participants`);
+
+      // 3. Buscar todos os eventos desses jogos
+      const { data: gameEvents, error: fullEventsError } = await supabase
+        .from('game_events')
+        .select('*')
+        .in('game_id', games.map(game => game.id));
+
+      if (fullEventsError) {
+        console.error('Error fetching full events:', fullEventsError);
+        throw fullEventsError;
+      }
+
+      if (!gameEvents || gameEvents.length === 0) {
+        console.log('No events found for games');
+        return [];
+      }
+
+      console.log(`Found ${gameEvents.length} events`);
+
+      // 4. Agrupar eventos por jogo
       const gameEventsByGame = gameEvents.reduce((acc, event) => {
         if (!acc[event.game_id]) {
           acc[event.game_id] = [];
@@ -228,47 +290,44 @@ export const gamePerformanceService = {
         return acc;
       }, {} as Record<string, typeof gameEvents>);
 
-      // 3. Inicializar estatísticas dos jogadores ativos
+      // 5. Inicializar estatísticas dos jogadores ativos
       const playerStats: Record<string, PlayerStats> = {};
       const activePlayerIds = new Set(
-        gameEvents
-          .filter(event => event.member.status === 'Ativo')
-          .map(event => event.member_id)
+        games.flatMap(game => 
+          game.game_participants
+            ?.filter(participant => 
+              participant.member?.status === 'Ativo' && 
+              participant.status === 'confirmed'
+            )
+            .map(participant => participant.member_id) || []
+        )
       );
 
-      // 4. Processar cada jogo
-      Object.values(gameEventsByGame).forEach(eventsForGame => {
-        // Identificar times e jogadores no jogo
-        const teamsInGame = [...new Set(eventsForGame.map(event => event.team))];
-        const activePlayersInGame = [...new Set(eventsForGame
-          .filter(event => activePlayerIds.has(event.member_id))
-          .map(event => event.member_id)
-        )];
+      console.log(`Found ${activePlayerIds.size} active players`);
 
-        // Calcular gols por time (usando TODOS os jogadores)
-        const gameGoals: Record<string, number> = {};
-        teamsInGame.forEach(team => {
-          gameGoals[team] = eventsForGame
-            .filter(event => event.team === team && event.event_type === 'goal')
-            .length;
+      // 6. Processar cada jogo
+      games.forEach(game => {
+        if (!game.game_participants) return;
+        
+        const eventsForGame = gameEventsByGame[game.id] || [];
+        // Se o jogo não tem eventos, pular
+        if (eventsForGame.length === 0) return;
 
-          // Adicionar gols contra do time adversário
-          const ownGoals = eventsForGame
-            .filter(event => event.team !== team && event.event_type === 'own-goal')
-            .length;
-          
-          gameGoals[team] += ownGoals;
-        });
+        const confirmedParticipants = game.game_participants
+          .filter(participant => 
+            participant.member?.status === 'Ativo' && 
+            participant.status === 'confirmed'
+          );
 
-        // Processar eventos apenas para jogadores ativos
-        eventsForGame.forEach(event => {
-          if (!activePlayerIds.has(event.member_id)) return;
+        // Processar participantes ativos e confirmados
+        confirmedParticipants.forEach(participant => {
+          if (!participant.member) return;
 
           // Inicializar estatísticas do jogador se necessário
-          if (!playerStats[event.member_id]) {
-            playerStats[event.member_id] = {
-              id: event.member_id,
-              name: event.member.nickname,
+          if (!playerStats[participant.member_id]) {
+            playerStats[participant.member_id] = {
+              id: participant.member_id,
+              name: participant.member.nickname,
               games: 0,
               goals: 0,
               ownGoals: 0,
@@ -282,26 +341,42 @@ export const gamePerformanceService = {
             };
           }
 
-          // Contar eventos
-          if (event.event_type === 'goal') {
-            playerStats[event.member_id].goals++;
-          } else if (event.event_type === 'own-goal') {
-            playerStats[event.member_id].ownGoals++;
-          } else if (event.event_type === 'save') {
-            playerStats[event.member_id].saves++;
-          }
-        });
+          // Incrementar jogos (todos participantes recebem ponto por jogo)
+          playerStats[participant.member_id].games++;
 
-        // Atualizar estatísticas dos jogadores ativos
-        activePlayersInGame.forEach(playerId => {
-          if (!playerStats[playerId]) return;
+          // Processar eventos do jogador
+          eventsForGame
+            .filter(event => event.member_id === participant.member_id)
+            .forEach(event => {
+              if (event.event_type === 'goal') {
+                playerStats[participant.member_id].goals++;
+              } else if (event.event_type === 'own-goal') {
+                playerStats[participant.member_id].ownGoals++;
+              } else if (event.event_type === 'save') {
+                playerStats[participant.member_id].saves++;
+              }
+            });
 
-          const playerTeam = eventsForGame.find(e => e.member_id === playerId)?.team;
+          // Determinar resultado usando o placar calculado
+          const playerTeam = eventsForGame.find(e => e.member_id === participant.member_id)?.team;
           if (!playerTeam) return;
 
-          playerStats[playerId].games++;
+          const gameGoals: Record<string, number> = {};
+          const teamsInGame = [...new Set(eventsForGame.map(e => e.team))];
 
-          // Determinar resultado usando o placar calculado com TODOS os jogadores
+          teamsInGame.forEach(team => {
+            gameGoals[team] = eventsForGame
+              .filter(event => event.team === team && event.event_type === 'goal')
+              .length;
+
+            // Adicionar gols contra do time adversário
+            const ownGoals = eventsForGame
+              .filter(event => event.team !== team && event.event_type === 'own-goal')
+              .length;
+            
+            gameGoals[team] += ownGoals;
+          });
+
           const teamGoals = gameGoals[playerTeam] || 0;
           const maxOtherTeamGoals = Math.max(
             ...Object.entries(gameGoals)
@@ -310,25 +385,27 @@ export const gamePerformanceService = {
           );
 
           if (teamGoals > maxOtherTeamGoals) {
-            playerStats[playerId].wins++;
+            playerStats[participant.member_id].wins++;
           } else if (teamGoals === maxOtherTeamGoals) {
-            playerStats[playerId].draws++;
+            playerStats[participant.member_id].draws++;
           } else {
-            playerStats[playerId].losses++;
+            playerStats[participant.member_id].losses++;
           }
         });
       });
 
-      // 5. Calcular pontuação e estatísticas finais
+      console.log(`Processed ${Object.keys(playerStats).length} players with statistics`);
+
+      // 7. Calcular pontuação e estatísticas finais
       return Object.values(playerStats)
         .map(player => {
           const points = 
-            player.games * 1 +
-            player.goals * 1 +
-            player.ownGoals * -1 +
-            player.wins * 3 +
-            player.draws * 1 +
-            player.saves * 0.20;
+            player.games * 1 +      // 1 ponto por participação
+            player.goals * 1 +      // 1 ponto por gol
+            player.ownGoals * -1 +  // -1 ponto por gol contra
+            player.wins * 3 +       // 3 pontos por vitória
+            player.draws * 1 +      // 1 ponto por empate
+            player.saves * 0.20;    // 0.2 pontos por defesa
 
           return {
             ...player,

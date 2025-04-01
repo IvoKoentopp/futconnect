@@ -193,10 +193,18 @@ export const ClubSettings = () => {
     try {
       setIsLoading(true);
       
-      // Atualizar as configurações do clube
+      // Primeiro verifica se já existe um registro para o clube
+      const { data: existingSettings } = await supabase
+        .from('club_settings')
+        .select('id')
+        .eq('club_id', user?.activeClub?.id)
+        .maybeSingle();
+      
+      // Se existe, atualiza. Se não, insere.
       const { error } = await supabase
         .from('club_settings')
         .upsert({
+          ...(existingSettings?.id ? { id: existingSettings.id } : {}),
           club_id: user?.activeClub?.id,
           description: clubForm.description,
           logo_url: clubForm.logoUrl,
@@ -204,7 +212,8 @@ export const ClubSettings = () => {
           anthem_url: clubForm.anthemUrl,
           invitation_url: clubForm.invitationUrl,
           anthem_link_url: clubForm.anthemLinkUrl,
-          invitation_link_url: clubForm.invitationLinkUrl
+          invitation_link_url: clubForm.invitationLinkUrl,
+          updated_at: new Date().toISOString()
         });
       
       if (error) {
@@ -215,6 +224,9 @@ export const ClubSettings = () => {
         title: "Configurações salvas",
         description: "As configurações do clube foram atualizadas com sucesso.",
       });
+
+      // Atualiza os dados após salvar
+      fetchClubSettings();
     } catch (error) {
       console.error('Erro ao salvar configurações:', error);
       toast({
