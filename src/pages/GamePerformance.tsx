@@ -366,10 +366,10 @@ const GamePerformance = () => {
   return (
     <AdminLayout appMode="club">
       <div className="container mx-auto py-4">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h1 className="text-2xl font-bold">Performance</h1>
           
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Select value={selectedYear} onValueChange={setSelectedYear}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Ano" />
@@ -476,72 +476,145 @@ const GamePerformance = () => {
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-futconnect-200 border-t-futconnect-600"></div>
                     </div>
                   ) : teamStats.length > 0 ? (
-                    <div className="rounded-md border overflow-hidden">
-                      <Table>
-                        <TableHeader className="bg-slate-50">
-                          <TableRow>
-                            <TableHead className="w-16 text-center font-semibold">Posição</TableHead>
-                            <TableHead className="font-semibold">Time</TableHead>
-                            <TableHead className="text-center font-semibold">
-                              <div className="flex items-center justify-center">
-                                <span>Pontos</span>
-                                <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
-                              </div>
-                            </TableHead>
-                            <TableHead className="text-center font-semibold">Jogos</TableHead>
-                            <TableHead className="text-center font-semibold">Vitórias</TableHead>
-                            <TableHead className="text-center font-semibold">Empates</TableHead>
-                            <TableHead className="text-center font-semibold">Derrotas</TableHead>
-                            <TableHead className="text-center font-semibold">
-                              <div className="flex items-center justify-center">
-                                <span>Gols Marcados</span>
-                                <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
-                              </div>
-                            </TableHead>
-                            <TableHead className="text-center font-semibold">Gols Sofridos</TableHead>
-                            <TableHead className="text-center font-semibold">Aproveitamento</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {teamStats.map((team, index) => (
-                            <TableRow 
-                              key={team.id} 
-                              className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
-                            >
-                              <TableCell className="text-center font-medium">
-                                {index < 3 ? (
-                                  <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full 
-                                    ${index === 0 ? 'bg-amber-100 text-amber-800' : 
-                                      index === 1 ? 'bg-slate-200 text-slate-800' : 
-                                      'bg-amber-900/20 text-amber-900'}`
-                                  }>
-                                    {index + 1}
-                                  </div>
-                                ) : (
-                                  index + 1
-                                )}
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="w-4 h-4 rounded border border-gray-200" 
-                                    style={{ backgroundColor: team.color }}
-                                  />
-                                  {team.name}
+                    <div>
+                      <div className="hidden md:block rounded-md border overflow-hidden">
+                        <Table>
+                          <TableHeader className="bg-slate-50">
+                            <TableRow>
+                              <TableHead className="w-16 text-center font-semibold">Posição</TableHead>
+                              <TableHead className="font-semibold">Time</TableHead>
+                              <TableHead className="text-center font-semibold">
+                                <div className="flex items-center justify-center">
+                                  <span>Pontos</span>
+                                  <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
                                 </div>
-                              </TableCell>
-                              <TableCell className="text-center font-semibold">{team.points}</TableCell>
-                              <TableCell className="text-center">{team.totalGames}</TableCell>
-                              <TableCell className="text-center">{team.wins}</TableCell>
-                              <TableCell className="text-center">{team.draws}</TableCell>
-                              <TableCell className="text-center">{team.losses}</TableCell>
-                              <TableCell className="text-center font-medium">{team.goalsScored}</TableCell>
-                              <TableCell className="text-center">{team.goalsConceded}</TableCell>
-                              <TableCell className="text-center">{team.winRate}</TableCell>
+                              </TableHead>
+                              <TableHead className="text-center font-semibold">Jogos</TableHead>
+                              <TableHead className="text-center font-semibold">Vitórias</TableHead>
+                              <TableHead className="text-center font-semibold">Empates</TableHead>
+                              <TableHead className="text-center font-semibold">Derrotas</TableHead>
+                              <TableHead className="text-center font-semibold">
+                                <div className="flex items-center justify-center">
+                                  <span>Gols Marcados</span>
+                                  <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
+                                </div>
+                              </TableHead>
+                              <TableHead className="text-center font-semibold">Gols Sofridos</TableHead>
+                              <TableHead className="text-center font-semibold">Aproveitamento</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {teamStats.map((team, index) => (
+                              <TableRow 
+                                key={team.id} 
+                                className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                              >
+                                <TableCell className="text-center font-medium">
+                                  {index < 3 ? (
+                                    <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full 
+                                      ${index === 0 ? 'bg-amber-100 text-amber-800' : 
+                                        index === 1 ? 'bg-slate-200 text-slate-800' : 
+                                        'bg-amber-900/20 text-amber-900'}`
+                                    }>
+                                      {index + 1}
+                                    </div>
+                                  ) : (
+                                    index + 1
+                                  )}
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="w-4 h-4 rounded border border-gray-200" 
+                                      style={{ backgroundColor: team.color }}
+                                    />
+                                    {team.name}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-center font-semibold">{team.points}</TableCell>
+                                <TableCell className="text-center">{team.totalGames}</TableCell>
+                                <TableCell className="text-center">{team.wins}</TableCell>
+                                <TableCell className="text-center">{team.draws}</TableCell>
+                                <TableCell className="text-center">{team.losses}</TableCell>
+                                <TableCell className="text-center font-medium">{team.goalsScored}</TableCell>
+                                <TableCell className="text-center">{team.goalsConceded}</TableCell>
+                                <TableCell className="text-center">{team.winRate}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Mobile view */}
+                      <div className="grid grid-cols-1 gap-4 md:hidden">
+                        {teamStats.map((team, index) => (
+                          <Card key={team.id}>
+                            <CardContent className="pt-6">
+                              <div className="space-y-4">
+                                {/* Header com posição, nome e cor do time */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`flex items-center justify-center w-8 h-8 rounded-full font-medium
+                                      ${index === 0 ? 'bg-amber-100 text-amber-800' : 
+                                        index === 1 ? 'bg-slate-200 text-slate-800' : 
+                                        index === 2 ? 'bg-amber-900/20 text-amber-900' :
+                                        'bg-gray-100 text-gray-600'}`
+                                    }>
+                                      {index + 1}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="w-4 h-4 rounded border border-gray-200" 
+                                        style={{ backgroundColor: team.color }}
+                                      />
+                                      <span className="font-medium text-lg">{team.name}</span>
+                                    </div>
+                                  </div>
+                                  <Badge variant="outline" className="font-semibold">
+                                    {team.points} pts
+                                  </Badge>
+                                </div>
+                                
+                                {/* Estatísticas principais */}
+                                <div className="grid grid-cols-3 gap-2 text-center">
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Jogos</p>
+                                    <p className="font-medium">{team.totalGames}</p>
+                                  </div>
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Vitórias</p>
+                                    <p className="font-medium">{team.wins}</p>
+                                  </div>
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Aproveit.</p>
+                                    <p className="font-medium">{team.winRate}</p>
+                                  </div>
+                                </div>
+                                
+                                {/* Estatísticas detalhadas */}
+                                <div className="space-y-2 pt-2 border-t">
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Empates</span>
+                                    <span>{team.draws}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Derrotas</span>
+                                    <span>{team.losses}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Gols Marcados</span>
+                                    <span className="font-medium">{team.goalsScored}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Gols Sofridos</span>
+                                    <span>{team.goalsConceded}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
@@ -573,7 +646,7 @@ const GamePerformance = () => {
                     </div>
                   ) : playerStats.length > 0 ? (
                     <>
-                      <div className="rounded-md border overflow-hidden">
+                      <div className="hidden md:block rounded-md border overflow-hidden">
                         <Table className="player-ranking-table">
                           <TableHeader className="bg-slate-50">
                             <TableRow>
@@ -636,7 +709,84 @@ const GamePerformance = () => {
                           </TableBody>
                         </Table>
                       </div>
-                      
+
+                      {/* Mobile view */}
+                      <div className="grid grid-cols-1 gap-4 md:hidden">
+                        {playerStats.map((player, index) => (
+                          <Card key={player.id}>
+                            <CardContent className="pt-6">
+                              <div className="space-y-4">
+                                {/* Header com posição, nome e pontos */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`flex items-center justify-center w-8 h-8 rounded-full font-medium
+                                      ${index === 0 ? 'bg-amber-100 text-amber-800' : 
+                                        index === 1 ? 'bg-slate-200 text-slate-800' : 
+                                        index === 2 ? 'bg-amber-900/20 text-amber-900' :
+                                        'bg-gray-100 text-gray-600'}`
+                                    }>
+                                      {index + 1}
+                                    </div>
+                                    <span className="font-medium text-lg">{player.name}</span>
+                                  </div>
+                                  <Badge variant="outline" className="font-semibold">
+                                    {player.points.toFixed(1)} pts
+                                  </Badge>
+                                </div>
+
+                                {/* Estatísticas principais */}
+                                <div className="grid grid-cols-3 gap-2 text-center">
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Jogos</p>
+                                    <p className="font-medium">{player.games}</p>
+                                  </div>
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Vitórias</p>
+                                    <p className="font-medium">{player.wins}</p>
+                                  </div>
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Aproveit.</p>
+                                    <p className="font-medium">{player.winRate}</p>
+                                  </div>
+                                </div>
+
+                                {/* Estatísticas de gols */}
+                                <div className="grid grid-cols-3 gap-2 text-center">
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Gols</p>
+                                    <p className="font-medium">{player.goals}</p>
+                                  </div>
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Média</p>
+                                    <p className="font-medium">{player.goalAverage.toFixed(2)}</p>
+                                  </div>
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Defesas</p>
+                                    <p className="font-medium">{player.saves}</p>
+                                  </div>
+                                </div>
+
+                                {/* Estatísticas detalhadas */}
+                                <div className="space-y-2 pt-2 border-t">
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Empates</span>
+                                    <span>{player.draws}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Derrotas</span>
+                                    <span>{player.losses}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Gols Contra</span>
+                                    <span>{player.ownGoals}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+
                       <div className="mt-6 p-4 bg-slate-50 rounded-md border">
                         <h3 className="font-medium text-slate-900 mb-2">Critérios de Pontuação</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -696,56 +846,111 @@ const GamePerformance = () => {
                       <div className="h-8 w-8 animate-spin rounded-full border-4 border-futconnect-200 border-t-futconnect-600"></div>
                     </div>
                   ) : participationRanking.length > 0 ? (
-                    <div className="rounded-md border overflow-hidden">
-                      <Table className="player-ranking-table">
-                        <TableHeader className="bg-slate-50">
-                          <TableRow>
-                            <TableHead className="w-16 text-center font-semibold">Posição</TableHead>
-                            <TableHead className="font-semibold">Jogador</TableHead>
-                            <TableHead className="text-center font-semibold">
-                              <div className="flex items-center justify-center">
-                                <span>Pontos</span>
-                                <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
-                              </div>
-                            </TableHead>
-                            <TableHead className="text-center font-semibold">Taxa de Participação</TableHead>
-                            <TableHead className="text-center font-semibold">Jogos</TableHead>
-                            <TableHead className="text-center font-semibold">Tempo de Associação (dias)</TableHead>
-                            <TableHead className="text-center font-semibold">Idade (anos)</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {participationRanking.map((player, index) => (
-                            <TableRow 
-                              key={player.id}
-                              className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
-                            >
-                              <TableCell className="text-center font-medium">
-                                {index < 3 ? (
-                                  <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full 
-                                    ${index === 0 ? 'bg-amber-100 text-amber-800' : 
-                                      index === 1 ? 'bg-slate-200 text-slate-800' : 
-                                      'bg-amber-900/20 text-amber-900'}`
-                                  }>
-                                    {index + 1}
-                                  </div>
-                                ) : (
-                                  index + 1
-                                )}
-                              </TableCell>
-                              <TableCell className="font-medium">{player.name}</TableCell>
-                              <TableCell className="text-center font-semibold">{player.points.toFixed(2)}</TableCell>
-                              <TableCell className="text-center">
-                                {player.participationRate ? `${player.participationRate.toFixed(2)}%` : '0.00%'}
-                              </TableCell>
-                              <TableCell className="text-center">{player.games}</TableCell>
-                              <TableCell className="text-center">{player.membershipTime}</TableCell>
-                              <TableCell className="text-center">{player.age}</TableCell>
+                    <>
+                      <div className="hidden md:block rounded-md border overflow-hidden">
+                        <Table className="player-ranking-table">
+                          <TableHeader className="bg-slate-50">
+                            <TableRow>
+                              <TableHead className="w-16 text-center font-semibold">Posição</TableHead>
+                              <TableHead className="font-semibold">Jogador</TableHead>
+                              <TableHead className="text-center font-semibold">
+                                <div className="flex items-center justify-center">
+                                  <span>Pontos</span>
+                                  <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
+                                </div>
+                              </TableHead>
+                              <TableHead className="text-center font-semibold">Taxa de Participação</TableHead>
+                              <TableHead className="text-center font-semibold">Jogos</TableHead>
+                              <TableHead className="text-center font-semibold">Tempo de Associação (dias)</TableHead>
+                              <TableHead className="text-center font-semibold">Idade (anos)</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {participationRanking.map((player, index) => (
+                              <TableRow 
+                                key={player.id}
+                                className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                              >
+                                <TableCell className="text-center font-medium">
+                                  {index < 3 ? (
+                                    <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full 
+                                      ${index === 0 ? 'bg-amber-100 text-amber-800' : 
+                                        index === 1 ? 'bg-slate-200 text-slate-800' : 
+                                        'bg-amber-900/20 text-amber-900'}`
+                                    }>
+                                      {index + 1}
+                                    </div>
+                                  ) : (
+                                    index + 1
+                                  )}
+                                </TableCell>
+                                <TableCell className="font-medium">{player.name}</TableCell>
+                                <TableCell className="text-center font-semibold">{player.points.toFixed(2)}</TableCell>
+                                <TableCell className="text-center">
+                                  {player.participationRate ? `${player.participationRate.toFixed(2)}%` : '0.00%'}
+                                </TableCell>
+                                <TableCell className="text-center">{player.games}</TableCell>
+                                <TableCell className="text-center">{player.membershipTime}</TableCell>
+                                <TableCell className="text-center">{player.age}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile view */}
+                      <div className="grid grid-cols-1 gap-4 md:hidden">
+                        {participationRanking.map((player, index) => (
+                          <Card key={player.id}>
+                            <CardContent className="pt-6">
+                              <div className="space-y-4">
+                                {/* Header com posição, nome e pontos */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`flex items-center justify-center w-8 h-8 rounded-full font-medium
+                                      ${index === 0 ? 'bg-amber-100 text-amber-800' : 
+                                        index === 1 ? 'bg-slate-200 text-slate-800' : 
+                                        index === 2 ? 'bg-amber-900/20 text-amber-900' :
+                                        'bg-gray-100 text-gray-600'}`
+                                    }>
+                                      {index + 1}
+                                    </div>
+                                    <span className="font-medium text-lg">{player.name}</span>
+                                  </div>
+                                  <Badge variant="outline" className="font-semibold">
+                                    {player.points.toFixed(2)} pts
+                                  </Badge>
+                                </div>
+
+                                {/* Estatísticas principais */}
+                                <div className="grid grid-cols-2 gap-2 text-center">
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Taxa de Participação</p>
+                                    <p className="font-medium">{(player.participationRate * 100).toFixed(1)}%</p>
+                                  </div>
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Jogos</p>
+                                    <p className="font-medium">{player.games}</p>
+                                  </div>
+                                </div>
+
+                                {/* Informações adicionais */}
+                                <div className="space-y-2 pt-2 border-t">
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Tempo de Associação</span>
+                                    <span>{player.membershipTime} dias</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-sm text-muted-foreground">Idade</span>
+                                    <span>{player.age} anos</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       Nenhum dado disponível para o período selecionado

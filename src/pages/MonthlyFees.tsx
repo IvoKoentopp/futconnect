@@ -278,14 +278,14 @@ const MonthlyFees = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mensalidades</h1>
           <p className="text-gray-500">
             Gerencie as mensalidades do {user?.activeClub?.name}
           </p>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {canEdit && (
             <>
               <Button
@@ -377,7 +377,7 @@ const MonthlyFees = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="all" onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
+            <TabsList className="mb-4 flex flex-wrap">
               <TabsTrigger value="all">
                 Todas
                 <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
@@ -417,7 +417,8 @@ const MonthlyFees = () => {
             {/* Conteúdo das tabs */}
             {['all', 'pending', 'paid', 'late', 'cancelled'].map(tabValue => (
               <TabsContent key={tabValue} value={tabValue} className="m-0">
-                <div className="overflow-x-auto">
+                {/* Versão Desktop */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-gray-50">
@@ -481,7 +482,6 @@ const MonthlyFees = () => {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               <div className="flex items-center space-x-2">
-                                {/* Botão de pagamento - apenas para mensalidades pendentes/atrasadas */}
                                 {(fee.status === 'pending' || fee.status === 'late') && (
                                   <Button 
                                     variant="ghost" 
@@ -529,6 +529,73 @@ const MonthlyFees = () => {
                       )}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Versão Mobile */}
+                <div className="md:hidden space-y-4">
+                  {isLoading ? (
+                    <div className="text-center py-8 text-gray-500">
+                      Carregando mensalidades...
+                    </div>
+                  ) : filteredFees.length > 0 ? (
+                    filteredFees.map((fee) => (
+                      <Card key={fee.id}>
+                        <CardContent className="pt-6">
+                          <div className="space-y-4">
+                            {/* Cabeçalho com nome e status */}
+                            <div className="flex items-center justify-between">
+                              <div className="text-lg font-medium text-gray-900">
+                                {fee.memberName}
+                              </div>
+                              <StatusBadge status={fee.status} />
+                            </div>
+
+                            {/* Ações */}
+                            <div className="flex items-center justify-end space-x-2">
+                              {(fee.status === 'pending' || fee.status === 'late') && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handlePayment(fee)}
+                                  title="Registrar Pagamento"
+                                  className="text-green-500 hover:text-green-700 hover:bg-green-50"
+                                >
+                                  <Receipt className="h-4 w-4" />
+                                </Button>
+                              )}
+                              
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleEdit(fee)}
+                                title="Editar mensalidade"
+                                className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleDelete(fee.id)}
+                                disabled={fee.status === 'paid' && fee.transactionId ? true : false}
+                                title={fee.status === 'paid' && fee.transactionId ? 
+                                  "Não é possível excluir mensalidades pagas com transação associada" : 
+                                  "Excluir mensalidade"}
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      Nenhuma mensalidade encontrada com os filtros atuais.
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             ))}
