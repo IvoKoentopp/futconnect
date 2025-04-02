@@ -77,6 +77,7 @@ const MemberProfile = () => {
           category,
           status,
           positions,
+          photo_url,
           sponsor_id,
           godchildren:members(
             id,
@@ -326,16 +327,18 @@ const MemberProfile = () => {
                 <Card>
                   <CardHeader className="pb-2">
                     <div className="flex flex-col md:flex-row md:items-center">
-                      <Avatar className="h-20 w-20 mb-4 md:mb-0 md:mr-6">
-                        {selectedMember.photo_url ? (
-                          <AvatarImage src={selectedMember.photo_url} alt={selectedMember.name} />
-                        ) : (
-                          <AvatarFallback className="text-2xl bg-primary/10">
-                            {selectedMember.name?.charAt(0)}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div className="flex-1">
+                      <div className="flex flex-col items-center md:items-start">
+                        <Avatar className="h-32 w-32 mb-4">
+                          {selectedMember.photo_url ? (
+                            <AvatarImage src={selectedMember.photo_url} alt={selectedMember.name} />
+                          ) : (
+                            <AvatarFallback className="text-4xl bg-primary/10">
+                              {selectedMember.name?.charAt(0)}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                      </div>
+                      <div className="flex-1 text-center md:text-left md:ml-6">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                           <div>
                             <h2 className="text-2xl font-bold">{selectedMember.name}</h2>
@@ -343,7 +346,7 @@ const MemberProfile = () => {
                               <p className="text-gray-500">{selectedMember.nickname}</p>
                             )}
                           </div>
-                          <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
+                          <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2 md:mt-0">
                             <Badge className={getCategoryBadgeColor(selectedMember.category)}>
                               {selectedMember.category}
                             </Badge>

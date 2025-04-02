@@ -27,6 +27,7 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { 
   Award, 
   Calendar, 
@@ -1247,20 +1248,26 @@ const Sponsors = () => {
                       <TableCell>{formatDisplayDate(event.date)}</TableCell>
                       <TableCell>{event.sponsor_name}</TableCell>
                       <TableCell>{event.event_type}</TableCell>
-                      <TableCell>{event.status}</TableCell>
+                      <TableCell>
+                        <Badge variant={event.status === 'Realizado' ? 'success' : 'default'}>
+                          {event.status}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{event.description || '-'}</TableCell>
                       {canEdit && (
                         <TableCell className="flex gap-2">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
                             onClick={() => handleEditEvent(event)}
                           >
                             <PenLine className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
+                            className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
                             onClick={() => handleDeleteEvent(event.id)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1278,26 +1285,31 @@ const Sponsors = () => {
       
       <div className="grid grid-cols-1 gap-4 md:hidden">
         {filteredEvents.map((event) => (
-          <Card key={event.id}>
+          <Card key={event.id} className={event.status === 'Realizado' ? 'bg-green-50/50' : ''}>
             <CardContent className="pt-6">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-medium">{event.sponsor_name}</p>
-                    <p className="text-sm text-muted-foreground">{formatDisplayDate(event.date)}</p>
+                    <p className="font-medium text-lg">{event.sponsor_name}</p>
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      {formatDisplayDate(event.date)}
+                    </p>
                   </div>
                   {canEdit && (
                     <div className="flex gap-2">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
+                        className="bg-blue-500 hover:bg-blue-600 text-white"
                         onClick={() => handleEditEvent(event)}
                       >
                         <PenLine className="h-4 w-4" />
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
+                        className="bg-red-500 hover:bg-red-600 text-white"
                         onClick={() => handleDeleteEvent(event.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -1305,19 +1317,21 @@ const Sponsors = () => {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-1">
-                  <div className="flex justify-between">
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Tipo:</span>
-                    <span className="text-sm">{event.event_type}</span>
+                    <Badge variant="outline">{event.event_type}</Badge>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Status:</span>
-                    <span className="text-sm">{event.status}</span>
+                    <Badge variant={event.status === 'Realizado' ? 'success' : 'default'}>
+                      {event.status}
+                    </Badge>
                   </div>
                   {event.description && (
-                    <div className="mt-2">
-                      <span className="text-sm text-muted-foreground">Descrição:</span>
-                      <p className="text-sm mt-1">{event.description}</p>
+                    <div className="mt-2 pt-2 border-t">
+                      <span className="text-sm text-muted-foreground block mb-1">Descrição:</span>
+                      <p className="text-sm">{event.description}</p>
                     </div>
                   )}
                 </div>
