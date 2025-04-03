@@ -52,39 +52,28 @@ const MemberProfile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Estado para carregamento de dados
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
   useEffect(() => {
-    fetchMembers();
+    fetchBasicMembers();
   }, []);
 
-  const fetchMembers = async () => {
+  const fetchBasicMembers = async () => {
     if (!user?.activeClub?.id) return;
     
     setIsLoading(true);
     try {
-      // Buscar todos os membros do clube e seus afilhados
-      const { data, error } = await supabase
+      // Carregar apenas lista mínima de membros
+      const { data: membersData, error } = await supabase
         .from('members')
         .select(`
           id,
           name,
           nickname,
-          email,
-          phone,
-          birth_date,
-          registration_date,
-          payment_start_date,
-          departure_date,
           category,
           status,
-          positions,
-          photo_url,
-          sponsor_id,
-          godchildren:members(
-            id,
-            name,
-            nickname,
-            status
-          )
+          photo_url
         `)
         .eq('club_id', user.activeClub.id)
         .neq('status', 'Sistema')
@@ -92,17 +81,14 @@ const MemberProfile = () => {
         
       if (error) throw error;
 
-      // Processar os afilhados para cada membro
-      const membersWithGodchildren = data?.map(member => ({
-        ...member,
-        godchildren: data.filter(m => m.sponsor_id === member.id)
-      }));
+      const basicMembers = membersData || [];
+      setMembers(basicMembers);
       
-      setMembers(membersWithGodchildren || []);
-      
-      // Set the first member as selected by default
-      if (membersWithGodchildren?.length > 0) {
-        setSelectedMember(membersWithGodchildren[0]);
+      // Se houver membros, carregar o primeiro
+      if (basicMembers.length > 0) {
+        const firstMember = basicMembers[0] as MemberDetails;
+        setSelectedMember(firstMember);
+        await fetchMemberDetails(firstMember.id);
       }
     } catch (error: any) {
       toast({
@@ -110,14 +96,108 @@ const MemberProfile = () => {
         description: error.message,
         variant: "destructive"
       });
-      console.error('Error fetching members:', error);
     } finally {
       setIsLoading(false);
     }
   };
-  
-  const selectMember = (member) => {
+
+  interface MemberDetails {
+    id: string;
+    name: string;
+    nickname?: string;
+    email?: string;
+    phone?: string;
+    birth_date?: string;
+    photo_url?: string;
+    registration_date?: string;
+    payment_start_date?: string;
+    departure_date?: string;
+    category: string;
+    status: string;
+    sponsor_id?: string;
+    positions?: string[];
+    club_id: string;
+    godchildren?: Array<{
+      id: string;
+      name: string;
+      nickname?: string;
+      status: string;
+    }>;
+  }
+
+  interface GameParticipant {
+    status: string;
+    games: any;
+  }
+
+  interface MonthlyFee {
+    id: string;
+    reference_month: string;
+    status: string;
+    amount: number;
+  }
+
+  const fetchMemberDetails = async (memberId: string) => {
+    setLoadingDetails(true);
+
+    try {
+      // Buscar detalhes completos do membro
+      const { data: memberData, error } = await supabase
+        .from('members')
+        .select(`
+          *,
+          godchildren:members(id, name, nickname, status)
+        `)
+        .eq('id', memberId)
+        .single();
+
+      if (error) throw error;
+
+      // Buscar mensalidades e jogos em paralelo
+      const [feesResponse, gamesResponse] = await Promise.all([
+        supabase
+          .from('monthly_fees')
+          .select('id, reference_month, status, amount')
+          .eq('member_id', memberId)
+          .order('reference_month', { ascending: false })
+          .limit(12),
+
+        supabase
+          .from('game_participants')
+          .select('status, games(*)')
+          .eq('member_id', memberId)
+          .order('created_at', { ascending: false })
+          .limit(10)
+      ]);
+
+      if (feesResponse.error) throw feesResponse.error;
+      if (gamesResponse.error) throw gamesResponse.error;
+
+      // Combinar todos os dados
+      const memberWithDetails = {
+        ...(memberData as MemberDetails),
+        godchildren: (memberData as MemberDetails).godchildren || [],
+        fees: (feesResponse.data as MonthlyFee[]) || [],
+        games: (gamesResponse.data as GameParticipant[]) || []
+      };
+      
+      setSelectedMember(memberWithDetails);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao carregar detalhes do sócio",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const selectMember = async (member: MemberDetails) => {
+    // Limpar dados anteriores
     setSelectedMember(member);
+    // Carregar detalhes completos
+    await fetchMemberDetails(member.id);
   };
 
   const getCategoryBadgeColor = (category) => {
@@ -489,12 +569,20 @@ const MemberProfile = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <MemberFeesHistory 
-                      fees={fees} 
-                      isLoading={feesLoading} 
-                      error={feesError} 
-                      memberName={selectedMember?.name}
-                    />
+                    {loadingDetails ? (
+                      <div className="space-y-4">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                      </div>
+                    ) : (
+                      <MemberFeesHistory 
+                        fees={fees} 
+                        isLoading={feesLoading} 
+                        error={feesError} 
+                        memberName={selectedMember?.name}
+                      />
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -509,12 +597,20 @@ const MemberProfile = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <MemberGamesHistory 
-                      games={games} 
-                      scoreDetails={scoreDetails}
-                      isLoading={gamesLoading} 
-                      error={gamesError} 
-                    />
+                    {loadingDetails ? (
+                      <div className="space-y-4">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                      </div>
+                    ) : (
+                      <MemberGamesHistory 
+                        games={games} 
+                        scoreDetails={scoreDetails}
+                        isLoading={gamesLoading} 
+                        error={gamesError} 
+                      />
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

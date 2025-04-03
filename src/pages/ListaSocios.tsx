@@ -79,10 +79,16 @@ interface DatabaseMember {
   };
 }
 
-interface FormattedMember {
+interface MemberListItem {
   id: string;
   name: string;
   nickname: string;
+  status: string;
+  sponsorName: string;
+  sponsorNickname: string;
+}
+
+interface FormattedMember extends MemberListItem {
   email: string;
   phone: string;
   photo: string | null;
@@ -91,10 +97,7 @@ interface FormattedMember {
   paymentStartDate: Date | null;
   departureDate: Date | null;
   category: string;
-  status: string;
   sponsorId: string | null;
-  sponsorName: string;
-  sponsorNickname: string;
   positions: string[];
 }
 
@@ -131,18 +134,18 @@ const ListaSocios = () => {
   const { toast } = useToast();
   const { canEdit } = useAuthorization();
   const isMobile = useIsMobile();
-  const [members, setMembers] = useState<FormattedMember[]>([]);
+  const [members, setMembers] = useState<MemberListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMember, setSelectedMember] = useState<FormattedMember | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [memberToDelete, setMemberToDelete] = useState<FormattedMember | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<MemberListItem | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [availableSponsors, setAvailableSponsors] = useState<DatabaseMember[]>([]);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  const [memberToChangePassword, setMemberToChangePassword] = useState<FormattedMember | null>(null);
+  const [memberToChangePassword, setMemberToChangePassword] = useState<MemberListItem | null>(null);
   
   // Parse date from YYYY-MM-DD string without timezone conversion
   const parseExactDate = (dateStr: string | null) => {
@@ -171,7 +174,16 @@ const ListaSocios = () => {
     try {
       const { data: membersData, error } = await supabase
         .from('members')
-        .select('id, name, nickname, email, phone, birth_date, photo_url, registration_date, payment_start_date, departure_date, category, status, sponsor_id, positions, club_id, sponsor:sponsor_id(name, nickname)')
+        .select(`
+          id,
+          name,
+          nickname,
+          status,
+          sponsor:sponsor_id (
+            name,
+            nickname
+          )
+        `)
         .eq('club_id', user.activeClub.id)
         .order('name');
       
@@ -180,25 +192,15 @@ const ListaSocios = () => {
       // Corrigindo o tipo dos dados retornados
       const typedMembersData = membersData as unknown as DatabaseMember[];
       
-      // Format the data for display - ensuring dates are handled correctly
-      const formattedMembers: FormattedMember[] = typedMembersData.map(member => {
+      // Format the data for display - apenas os campos necessários
+      const formattedMembers: MemberListItem[] = typedMembersData.map(member => {
         return {
           id: member.id,
           name: member.name,
           nickname: member.nickname || '-',
-          email: member.email,
-          phone: member.phone || '-',
-          photo: member.photo_url || null,
-          birthDate: parseExactDate(member.birth_date),
-          registrationDate: parseExactDate(member.registration_date),
-          paymentStartDate: parseExactDate(member.payment_start_date),
-          departureDate: parseExactDate(member.departure_date),
-          category: member.category,
           status: member.status,
-          sponsorId: member.sponsor_id,
           sponsorName: member.sponsor?.name || '-',
-          sponsorNickname: member.sponsor?.nickname || '-',
-          positions: member.positions || []
+          sponsorNickname: member.sponsor?.nickname || '-'
         };
       });
       
@@ -246,14 +248,53 @@ const ListaSocios = () => {
     return (
       member.name.toLowerCase().includes(searchLower) ||
       (member.nickname && member.nickname.toLowerCase().includes(searchLower)) ||
-      member.category.toLowerCase().includes(searchLower)
+      member.status.toLowerCase().includes(searchLower)
     );
   });
   
   // Handle opening member detail view
-  const handleOpenDetail = (member: FormattedMember) => {
-    setSelectedMember(member);
-    setIsDetailOpen(true);
+  const handleOpenDetail = async (member: MemberListItem) => {
+    try {
+      const { data: memberData, error } = await supabase
+        .from('members')
+        .select('*, sponsor:sponsor_id(name, nickname)')
+        .eq('id', member.id)
+        .single();
+
+      if (error) throw error;
+
+      const typedMemberData = memberData as unknown as DatabaseMember;
+
+      // Formatar os dados completos do membro
+      const formattedMember = {
+        id: member.id,
+        name: member.name,
+        nickname: member.nickname,
+        status: member.status,
+        sponsorName: member.sponsorName,
+        sponsorNickname: member.sponsorNickname,
+        email: typedMemberData.email,
+        phone: typedMemberData.phone || '-',
+        photo: typedMemberData.photo_url,
+        birthDate: parseExactDate(typedMemberData.birth_date),
+        registrationDate: parseExactDate(typedMemberData.registration_date),
+        paymentStartDate: parseExactDate(typedMemberData.payment_start_date),
+        departureDate: parseExactDate(typedMemberData.departure_date),
+        category: typedMemberData.category,
+        sponsorId: typedMemberData.sponsor_id,
+        positions: typedMemberData.positions || []
+      } as FormattedMember;
+
+      setSelectedMember(formattedMember);
+      setIsDetailOpen(true);
+    } catch (error: any) {
+      console.error('Error fetching member details:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar detalhes do sócio",
+        description: error.message,
+      });
+    }
   };
   
   // Handle closing detail view
@@ -516,19 +557,9 @@ const ListaSocios = () => {
       const exportData = members.map(member => {
         return {
           'Nome': member.name,
-          'Data de Nascimento': member.birthDate ? formatDisplayDate(member.birthDate) : '-',
           'Apelido': member.nickname !== '-' ? member.nickname : '',
-          'Email': member.email || '-',
-          'Telefone': member.phone !== '-' ? member.phone : '',
-          'Categoria': member.category,
           'Status': member.status,
-          'Padrinho': member.sponsorNickname !== '-' ? member.sponsorNickname : member.sponsorName,
-          'Data de Cadastro': member.registrationDate ? formatDisplayDate(member.registrationDate) : '-',
-          'Início de Pagamento': member.paymentStartDate ? formatDisplayDate(member.paymentStartDate) : '-',
-          'Data de Saída': member.departureDate ? formatDisplayDate(member.departureDate) : '-',
-          'Posições': member.positions && member.positions.length > 0 
-            ? member.positions.map((pos: string) => pos.charAt(0).toUpperCase() + pos.slice(1)).join(', ')
-            : '-'
+          'Padrinho': member.sponsorNickname !== '-' ? member.sponsorNickname : member.sponsorName
         };
       });
 
@@ -559,7 +590,7 @@ const ListaSocios = () => {
   };
 
   // Handle opening change password dialog
-  const handleOpenChangePassword = (e: React.MouseEvent, member: FormattedMember) => {
+  const handleOpenChangePassword = (e: React.MouseEvent, member: MemberListItem) => {
     e.stopPropagation();
     setMemberToChangePassword(member);
     setIsChangePasswordOpen(true);
@@ -618,23 +649,16 @@ const ListaSocios = () => {
                       className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                       onClick={() => handleOpenDetail(member)}
                     >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12">
-                          <AvatarFallback className="bg-futconnect-100 text-futconnect-600">
-                            {member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{member.name}</h3>
-                          <p className="text-sm text-gray-500">{member.nickname !== '-' ? member.nickname : ''}</p>
-                        </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{member.name}</h3>
+                        <p className="text-sm text-gray-500">{member.nickname !== '-' ? member.nickname : ''}</p>
                       </div>
                       
                       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                         <div>
-                          <span className="text-gray-500">Data de Nasc.:</span>
+                          <span className="text-gray-500">Status:</span>
                           <p>
-                            {formatDisplayDate(member.birthDate)}
+                            <StatusBadge status={member.status} />
                           </p>
                         </div>
                         <div>
@@ -667,9 +691,7 @@ const ListaSocios = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Foto</TableHead>
                         <TableHead>Nome</TableHead>
-                        <TableHead>Data de Nascimento</TableHead>
                         <TableHead>Apelido</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Padrinho</TableHead>
@@ -683,17 +705,7 @@ const ListaSocios = () => {
                           className="cursor-pointer hover:bg-gray-50"
                           onClick={() => handleOpenDetail(member)}
                         >
-                          <TableCell>
-                            <Avatar className="h-10 w-10">
-                              <AvatarFallback className="bg-futconnect-100 text-futconnect-600">
-                                {member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                          </TableCell>
                           <TableCell className="font-medium">{member.name}</TableCell>
-                          <TableCell>
-                            {formatDisplayDate(member.birthDate)}
-                          </TableCell>
                           <TableCell>{member.nickname}</TableCell>
                           <TableCell>
                             <StatusBadge status={member.status} />
