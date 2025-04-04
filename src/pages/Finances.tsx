@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { 
   Search, 
   PlusCircle, 
@@ -13,7 +14,8 @@ import {
   Trash2,
   Wallet,
   AlertCircle,
-  WalletCards
+  WalletCards,
+  CalendarRange
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
@@ -38,6 +40,7 @@ import { fetchChartOfAccounts } from '@/utils/chartOfAccounts';
 import { MonthlyFeeGenerationModal } from '@/components/MonthlyFeeGenerationModal';
 import { FinancialReportDialog } from '@/components/FinancialReportDialog';
 import { useBankAccounts } from '@/hooks/useBankAccounts';
+import { format, subDays, parseISO, isAfter, isBefore, isEqual, startOfDay, endOfDay } from 'date-fns';
 
 // Type badge component
 const TypeBadge = ({ type }: { type: string }) => {
@@ -75,6 +78,8 @@ const AmountDisplay = ({ amount, type }: { amount: number, type: string }) => {
 const Finances = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [startDate, setStartDate] = useState<Date | undefined>(subDays(new Date(), 30));
+  const [endDate, setEndDate] = useState<Date | undefined>(new Date());
   const { user } = useAuth();
   const { isClubAdmin } = useAuthorization();
   const { toast } = useToast();
@@ -132,11 +137,23 @@ const Finances = () => {
     setIsLoading(true);
     
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('transactions')
         .select('*')
-        .eq('club_id', user.activeClub.id)
-        .order('date', { ascending: false });
+        .eq('club_id', user.activeClub.id);
+
+      // Aplicar filtros de data
+      if (startDate) {
+        const startDateTime = startOfDay(startDate);
+        query = query.gte('date', startDateTime.toISOString());
+      }
+      
+      if (endDate) {
+        const endDateTime = endOfDay(endDate);
+        query = query.lte('date', endDateTime.toISOString());
+      }
+      
+      const { data, error } = await query.order('date', { ascending: false });
       
       if (error) throw error;
       
@@ -174,6 +191,13 @@ const Finances = () => {
       loadChartOfAccounts();
     }
   }, [user?.activeClub?.id]);
+
+  // Recarregar transações quando as datas mudarem
+  useEffect(() => {
+    if (user?.activeClub?.id) {
+      fetchTransactions();
+    }
+  }, [startDate, endDate]);
   
   const loadChartOfAccounts = async () => {
     if (!user?.activeClub?.id) return;
@@ -550,15 +574,35 @@ const Finances = () => {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                type="search"
-                placeholder="Buscar transações..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex flex-col md:flex-row gap-4 md:items-center flex-grow">
+              <div className="relative w-full md:w-96">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  type="search"
+                  placeholder="Buscar transações..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <CalendarRange className="h-4 w-4 text-gray-500" />
+                <div className="flex items-center space-x-2">
+                  <DateInput
+                    value={startDate}
+                    onChange={setStartDate}
+                    placeholder="Data inicial"
+                    className="w-[160px]"
+                  />
+                  <span className="text-gray-500 whitespace-nowrap">até</span>
+                  <DateInput
+                    value={endDate}
+                    onChange={setEndDate}
+                    placeholder="Data final"
+                    className="w-[160px]"
+                  />
+                </div>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               {canEdit && (

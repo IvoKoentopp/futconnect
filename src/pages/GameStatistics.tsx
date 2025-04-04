@@ -10,7 +10,8 @@ import { PieChart, Pie, BarChart as RechartsBarChart, Bar, XAxis, YAxis, Cartesi
 import { useToast } from '@/hooks/use-toast';
 
 const GameStatistics = () => {
-  const [selectedYear, setSelectedYear] = useState<string>("all");
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString());
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statistics, setStatistics] = useState({
@@ -28,7 +29,6 @@ const GameStatistics = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const clubId = user?.activeClub?.id || '';
-  const currentYear = new Date().getFullYear();
   
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -39,10 +39,10 @@ const GameStatistics = () => {
   }, [clubId]);
 
   useEffect(() => {
-    // Generate available years - from first game year to current
+    // Generate available years - starting with current year
     if (firstGameYear !== null) {
-      const years = ["all"];
-      for (let i = currentYear; i >= firstGameYear; i--) {
+      const years = [currentYear.toString(), "all"];
+      for (let i = currentYear - 1; i >= firstGameYear; i--) {
         years.push(i.toString());
       }
       setAvailableYears(years);

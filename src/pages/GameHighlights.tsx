@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Calendar, MapPin, Users, Trophy, CalendarCheck, Loader2 } from 'lucide-react';
+import { Star, Calendar, MapPin, Users, Trophy, CalendarCheck, Loader2, ChevronDown } from 'lucide-react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { gameService } from '@/services/gameService';
 import { GameWithParticipants } from '@/types/game';
 import { highlightService, GameHighlight } from '@/services/highlightService';
@@ -23,14 +24,51 @@ const GameHighlights: React.FC = () => {
   const [selectedGame, setSelectedGame] = useState<GameWithParticipants | null>(null);
   const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
   const [completedVotingGames, setCompletedVotingGames] = useState<Set<string>>(new Set());
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [firstGameYear, setFirstGameYear] = useState<number | null>(null);
   
-  // Buscar jogos realizados
-  const { data: games = [], isLoading } = useQuery({
-    queryKey: ['completed-games', clubId],
+  // Buscar o ano do primeiro jogo
+  const { data: firstGameYearData } = useQuery({
+    queryKey: ['first-game-year', clubId],
     queryFn: async () => {
       const allGames = await gameService.fetchGames(clubId);
-      // Filtrar apenas jogos realizados
-      return allGames.filter(game => game.status === 'completed');
+      if (allGames.length === 0) return null;
+      
+      const completedGames = allGames.filter(game => game.status === 'completed');
+      if (completedGames.length === 0) return null;
+      
+      const dates = completedGames.map(game => new Date(game.date));
+      const firstDate = new Date(Math.min(...dates.map(date => date.getTime())));
+      return firstDate.getFullYear();
+    },
+    enabled: !!clubId,
+  });
+
+  // Atualizar firstGameYear quando os dados chegarem
+  useEffect(() => {
+    if (firstGameYearData !== undefined) {
+      setFirstGameYear(firstGameYearData);
+    }
+  }, [firstGameYearData]);
+
+  // Buscar jogos realizados do ano selecionado
+  const { data: games = [], isLoading } = useQuery({
+    queryKey: ['completed-games', clubId, selectedYear],
+    queryFn: async () => {
+      const allGames = await gameService.fetchGames(clubId);
+      // Filtrar jogos realizados
+      const completedGames = allGames.filter(game => game.status === 'completed');
+      
+      // Se selectedYear for 'all', retorna todos os jogos realizados
+      if (selectedYear === 'all') {
+        return completedGames;
+      }
+      
+      // Caso contrário, filtra por ano
+      return completedGames.filter(game => {
+        const gameDate = new Date(game.date);
+        return gameDate.getFullYear().toString() === selectedYear;
+      });
     },
     enabled: !!clubId,
   });
@@ -244,6 +282,24 @@ const GameHighlights: React.FC = () => {
           <div className="text-gray-500">
             Vote e acompanhe os destaques das partidas realizadas
           </div>
+        </div>
+        <div className="mt-4 md:mt-0">
+          <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Selecione o ano" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os anos</SelectItem>
+              {firstGameYear && Array.from(
+                { length: new Date().getFullYear() - firstGameYear + 1 },
+                (_, i) => (new Date().getFullYear() - i).toString()
+              ).map(year => (
+                <SelectItem key={year} value={year}>
+                  {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       

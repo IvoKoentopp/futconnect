@@ -3,16 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthorization } from '@/hooks/useAuthorization';
-import { fetchMonthlyFees, deleteMonthlyFee, fetchMonthlyFeeSettings, updateMonthlyFeePayment, cancelMonthlyFee, generateMonthlyFees, updateMonthlyFee } from '@/utils/monthlyFees';
+import { fetchMonthlyFees, deleteMonthlyFee, updateMonthlyFeePayment, cancelMonthlyFee, updateMonthlyFee } from '@/utils/monthlyFees';
 import { MonthlyFee, MonthlyFeeSetting, MonthlyFeePaymentMethod, MonthlyFeeStatus } from '@/types/monthlyFee';
-import { MonthlyFeeGenerationModal } from '@/components/MonthlyFeeGenerationModal';
 import { MonthlyFeePaymentModal } from '@/components/MonthlyFeePaymentModal';
 import { MonthlyFeeEditModal } from '@/components/MonthlyFeeEditModal';
-import { MonthlyFeeSettingsModal } from '@/components/MonthlyFeeSettingsModal';
 import MonthlyFeeReportModal from '@/components/MonthlyFeeReportModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Search, FileText, Check, Clock, Ban, X, Trash2, MoreHorizontal, Receipt, Banknote, Pencil, AlertTriangle } from 'lucide-react';
+import { Search, FileText, Check, Clock, Ban, X, Trash2, MoreHorizontal, Pencil, AlertTriangle, Receipt } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -113,10 +111,8 @@ const MonthlyFees = () => {
   const [canEdit, setCanEdit] = useState(false);
   const [monthlyFees, setMonthlyFees] = useState<MonthlyFee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isGenerationModalOpen, setIsGenerationModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedFee, setSelectedFee] = useState<MonthlyFee | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -286,24 +282,7 @@ const MonthlyFees = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canEdit && (
-            <>
-              <Button
-                onClick={() => setIsGenerationModalOpen(true)}
-                className="bg-futconnect-600 hover:bg-futconnect-700"
-              >
-                <Receipt className="mr-2 h-4 w-4" />
-                Gerar Mensalidades
-              </Button>
-              <Button
-                onClick={() => setIsSettingsModalOpen(true)}
-                variant="outline"
-              >
-                <Banknote className="mr-2 h-4 w-4" />
-                Configurações
-              </Button>
-            </>
-          )}
+          {/* Botões de ação foram movidos para a página /monthly-fees/create */}
           <Button
             onClick={() => setIsReportModalOpen(true)}
             variant="outline"
@@ -606,26 +585,6 @@ const MonthlyFees = () => {
       {/* Actions */}
       {canEdit && (
         <>
-          <MonthlyFeeGenerationModal
-            isOpen={isGenerationModalOpen}
-            onClose={() => setIsGenerationModalOpen(false)}
-            onGenerate={async (referenceMonth: Date) => {
-              if (!user?.activeClub?.id) return false;
-              try {
-                const result = await generateMonthlyFees(user.activeClub.id, referenceMonth);
-                if (result.success) {
-                  await loadMonthlyFees();
-                  return true;
-                }
-                return false;
-              } catch (error) {
-                console.error('Error generating fees:', error);
-                return false;
-              }
-            }}
-            onOpenSettings={() => setIsSettingsModalOpen(true)}
-          />
-
           <MonthlyFeePaymentModal
             isOpen={isPaymentModalOpen}
             onClose={() => {
@@ -658,13 +617,6 @@ const MonthlyFees = () => {
             }}
           />
 
-          <MonthlyFeeSettingsModal
-            isOpen={isSettingsModalOpen}
-            onClose={() => setIsSettingsModalOpen(false)}
-            onSave={async () => {
-              await loadMonthlyFees();
-            }}
-          />
         </>
       )}
 

@@ -40,6 +40,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { GameStatisticsModal } from '@/components/GameStatisticsModal';
 import TeamFormationModal from '@/components/TeamFormationModal';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useYearFilter } from '@/hooks/useYearFilter';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Status badge component
 const StatusBadge = ({ status }: { status: string }) => {
@@ -88,6 +90,9 @@ const Games = () => {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   
+  // Filtragem por ano
+  const { selectedYear, setSelectedYear, availableYears } = useYearFilter(user?.activeClub?.id);
+
   // Fetch games using react-query
   const {
     data: games = [],
@@ -95,8 +100,8 @@ const Games = () => {
     isError,
     error
   } = useQuery({
-    queryKey: ['games', user?.activeClub?.id],
-    queryFn: () => gameService.fetchGames(user?.activeClub?.id || ''),
+    queryKey: ['games', user?.activeClub?.id, selectedYear],
+    queryFn: () => gameService.fetchGames(user?.activeClub?.id || '', selectedYear),
     enabled: !!user?.activeClub?.id,
   });
 
@@ -741,15 +746,31 @@ const Games = () => {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-4">
-            <div className="relative w-full">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                type="search"
-                placeholder="Buscar por título ou local..."
-                className="pl-9"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                <Input
+                  type="search"
+                  placeholder="Buscar por título ou local..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div className="w-full md:w-[180px]">
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o ano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map(year => (
+                      <SelectItem key={year} value={year}>
+                        {year === 'all' ? 'Todos os anos' : year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </CardHeader>

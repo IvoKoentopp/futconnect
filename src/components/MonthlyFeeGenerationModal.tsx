@@ -156,23 +156,15 @@ export function MonthlyFeeGenerationModal({
         generationType === 'specific' ? selectedMembers : undefined
       );
       
+      // Se o resultado for true, significa que a operação foi bem sucedida
+      // O toast de sucesso será mostrado pela função chamadora
       if (result) {
-        toast({
-          title: "Mensalidades geradas",
-          description: generationType === 'all' 
-            ? "As mensalidades foram geradas com sucesso para todos os sócios Contribuinte e Ativo."
-            : `As mensalidades foram geradas com sucesso para ${selectedMembers.length} ${selectedMembers.length === 1 ? 'sócio selecionado' : 'sócios selecionados'}.`
-        });
         onClose();
       }
     } catch (error: any) {
+      // Apenas define o erro no estado, não mostra toast
       console.error("Erro ao gerar mensalidades:", error);
       setError(error.message || "Não foi possível gerar as mensalidades.");
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message || "Não foi possível gerar as mensalidades.",
-      });
     } finally {
       setIsGenerating(false);
     }

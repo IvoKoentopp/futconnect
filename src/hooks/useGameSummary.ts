@@ -97,19 +97,26 @@ export const useGameSummary = (clubId: string | undefined, selectedYear: string 
           ? Number((totalGoals / gamesWithEventsCount).toFixed(2))
           : 0;
         
-        // Fetch participants for completed games
+        // Fetch participants for completed games with member details
         const { data: participants, error: participantsError } = await supabase
           .from('game_participants')
-          .select('game_id, status, member_id')
+          .select(`
+            *,
+            members (
+              id,
+              name,
+              status
+            )
+          `)
           .in('game_id', completedGameIds)
-          .eq('status', 'confirmed');
+          .neq('members.status', 'Sistema');
         
         if (participantsError) throw participantsError;
         
-        // Get member IDs to filter out system members
-        const memberIds = [...new Set(participants.map(p => p.member_id))];
+        // Filter out participations without valid members
+        const filteredParticipations = (participants || []).filter(p => p.members !== null);
         
-        if (memberIds.length === 0) {
+        if (filteredParticipations.length === 0) {
           setAverageGoalsPerGame(calculatedAverageGoals);
           setAveragePlayersPerGame(0);
           setCompletionRate(calculatedCompletionRate);
@@ -117,33 +124,20 @@ export const useGameSummary = (clubId: string | undefined, selectedYear: string 
           return;
         }
         
-        // Get real members (exclude system members)
-        const { data: members, error: membersError } = await supabase
-          .from('members')
-          .select('id')
-          .in('id', memberIds)
-          .eq('club_id', clubId);
-        
-        if (membersError) throw membersError;
-        
-        // Create a set of real member IDs for filtering
-        const realMemberIds = new Set(members.map(m => m.id));
-        
-        // Group participants by game
-        const participantsByGame = participants.reduce<Record<string, number>>((acc, curr) => {
-          if (realMemberIds.has(curr.member_id)) {
+        // Group participants by game and count confirmed
+        const participantsByGame = filteredParticipations.reduce<Record<string, number>>((acc, curr) => {
+          if (curr.status === 'confirmed') {
             acc[curr.game_id] = (acc[curr.game_id] || 0) + 1;
           }
           return acc;
         }, {});
         
-        // Calculate total players and games with players
-        const gamesWithPlayers = Object.keys(participantsByGame).length;
+        // Calculate total confirmed players
         const totalPlayers = Object.values(participantsByGame).reduce((sum, count) => sum + count, 0);
         
-        // Calculate average players per game
-        const calculatedAveragePlayers = gamesWithPlayers > 0 
-          ? Number((totalPlayers / gamesWithPlayers).toFixed(2))
+        // Calculate average players per game using total completed games
+        const calculatedAveragePlayers = completedGameIds.length > 0 
+          ? Number((totalPlayers / completedGameIds.length).toFixed(2))
           : 0;
         
         // Update state with calculated values

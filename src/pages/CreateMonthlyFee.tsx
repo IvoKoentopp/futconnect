@@ -26,35 +26,23 @@ const CreateMonthlyFee = () => {
     try {
       const result = await generateMonthlyFees(user.activeClub.id, referenceMonth, selectedMembers);
       
-      if (result.success) {
+      // Se teve sucesso ou gerou alguma mensalidade, consideramos sucesso
+      if (result.success || result.count > 0) {
         toast({
           title: "Mensalidades geradas",
           description: `${result.count} mensalidades foram geradas com sucesso para sócios Contribuinte e Ativo.`,
         });
         return true;
-      } else {
-        // Verify if there's a count greater than 0 even with error
-        if (result.count > 0) {
-          toast({
-            title: "Mensalidades geradas",
-            description: `${result.count} mensalidades foram geradas com sucesso para sócios Contribuinte e Ativo.`,
-          });
-          return true;
-        }
-        
-        // Only throw error if no mensalities were generated
-        throw new Error(result.error || "Não foi possível gerar as mensalidades.");
       }
-    } catch (error: any) {
-      console.error("Erro ao gerar mensalidades:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: error.message || "Ocorreu um erro ao gerar as mensalidades.",
-      });
       
-      // Re-throw the error to be caught by the modal
-      throw error;
+      // Se não gerou nenhuma mensalidade, retorna false sem mostrar erro
+      // O erro será mostrado pelo modal
+      return false;
+    } catch (error: any) {
+      // Apenas loga o erro e retorna false
+      // O erro será mostrado pelo modal
+      console.error("Erro ao gerar mensalidades:", error);
+      return false;
     }
   };
 

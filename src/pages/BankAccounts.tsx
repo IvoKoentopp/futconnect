@@ -568,14 +568,14 @@ const BankAccounts = () => {
                       value={startDate}
                       onChange={setStartDate}
                       placeholder="Data inicial"
-                      className="w-[130px]"
+                      className="w-[160px]"
                     />
-                    <span className="text-gray-500">até</span>
+                    <span className="text-gray-500 whitespace-nowrap">até</span>
                     <DateInput
                       value={endDate}
                       onChange={setEndDate}
                       placeholder="Data final"
-                      className="w-[130px]"
+                      className="w-[160px]"
                     />
                   </div>
                 </div>

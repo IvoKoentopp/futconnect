@@ -2,13 +2,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Game, GameParticipant, GameWithParticipants, GameEvent, GameEventWithMember } from "@/types/game";
 
 export const gameService = {
-  async fetchGames(clubId: string): Promise<GameWithParticipants[]> {
+  async fetchGames(clubId: string, year?: string): Promise<GameWithParticipants[]> {
     // Fetch games
-    const { data: games, error } = await supabase
+    let query = supabase
       .from('games')
       .select('*')
-      .eq('club_id', clubId)
-      .order('date', { ascending: false });
+      .eq('club_id', clubId);
+
+    // Se um ano específico foi fornecido, filtra por ele
+    if (year && year !== 'all') {
+      const startDate = `${year}-01-01`;
+      const endDate = `${year}-12-31`;
+      query = query.gte('date', startDate).lte('date', endDate);
+    }
+
+    const { data: games, error } = await query.order('date', { ascending: false });
 
     if (error) {
       console.error('Error fetching games:', error);

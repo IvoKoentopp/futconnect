@@ -55,8 +55,8 @@ const positions = [
   { id: "atacante", label: "Atacante" }
 ];
 
-// Define the form schema with Zod
-const memberFormSchema = z.object({
+// Função para criar o schema do formulário
+const createMemberFormSchema = (clubId: string) => z.object({
   name: z.string().min(2, {
     message: "O nome deve ter pelo menos 2 caracteres.",
   }),
@@ -64,25 +64,25 @@ const memberFormSchema = z.object({
     message: "O apelido deve ter pelo menos 2 caracteres.",
   }).superRefine(async (nickname, ctx) => {
     // Skip validation if editing and nickname hasn't changed
-    const formData = ctx.path[0] === 'nickname' ? (ctx.parent as any) : null;
+    const formData = ctx.path[0] === 'nickname' ? (ctx as any).parent : null;
     if (formData?.id && nickname === formData.originalNickname) {
       return;
     }
 
     try {
-      const { data: auth } = await supabase.auth.getSession();
-      const user = auth?.session?.user;
-      const activeClub = user?.user_metadata?.activeClub;
-
-      if (!user || !activeClub?.id) {
-        return; // Permite continuar sem validar duplicidade se não houver clube ativo
+      if (!clubId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Não foi possível validar o apelido: clube não selecionado",
+        });
+        return;
       }
 
       const { data, error } = await supabase
         .from('members')
         .select('id')
-        .eq('club_id', activeClub.id)
-        .eq('nickname', nickname)
+        .eq('club_id', clubId)
+        .ilike('nickname', nickname) // Usa ilike para busca case-insensitive
         .maybeSingle();
 
       if (error) {
@@ -97,7 +97,7 @@ const memberFormSchema = z.object({
       if (data) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Este apelido já está em uso no clube",
+          message: "Este apelido já está em uso no clube (mesmo ignorando maiúsculas/minúsculas)",
         });
       }
     } catch (error) {
@@ -108,6 +108,40 @@ const memberFormSchema = z.object({
   }),
   email: z.string().email({
     message: "Email inválido.",
+  }).superRefine(async (email, ctx) => {
+    // Pula validação se estiver editando e o email não mudou
+    const formData = ctx.path[0] === 'email' ? (ctx as any).parent : null;
+    if (formData?.id && email === formData.originalEmail) {
+      return;
+    }
+
+    try {
+      // Verifica se o email já existe em qualquer clube
+      const { data, error } = await supabase
+        .from('members')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking email:', error);
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Erro ao verificar email",
+        });
+        return;
+      }
+
+      if (data) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Este email já está cadastrado no sistema. Cada pessoa deve ter um email único.",
+        });
+      }
+    } catch (error) {
+      console.error('Error in email validation:', error);
+      return;
+    }
   }),
   password: z.string().min(6, {
     message: "A senha deve ter pelo menos 6 caracteres.",
@@ -126,9 +160,10 @@ const memberFormSchema = z.object({
   sponsorId: z.string().optional(),
   positions: z.array(z.string()).optional().default([]),
   originalNickname: z.string().optional(), // Adicionado para comparação na edição
+  originalEmail: z.string().optional(), // Adicionado para comparação na edição
 });
 
-type MemberFormValues = z.infer<typeof memberFormSchema>;
+type MemberFormValues = z.infer<ReturnType<typeof createMemberFormSchema>>;
 
 interface MemberFormProps {
   defaultValues?: Partial<MemberFormValues>;
@@ -152,6 +187,8 @@ export function MemberForm({
   const [photoPreview, setPhotoPreview] = useState<string | null>(defaultValues?.photo || null);
   
   // Set default form values
+  const memberFormSchema = createMemberFormSchema(user.activeClub.id);
+
   const form = useForm<MemberFormValues>({
     resolver: zodResolver(memberFormSchema),
     defaultValues: {
@@ -265,7 +302,7 @@ export function MemberForm({
                         </div>
                       </FormControl>
                       <FormDescription>
-                        O apelido não pode ser repetido dentro do mesmo clube.
+                        O apelido não pode ser repetido dentro do mesmo clube (não diferencia maiúsculas/minúsculas).
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

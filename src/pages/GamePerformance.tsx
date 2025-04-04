@@ -49,10 +49,10 @@ type GameEventResponse = {
 };
 
 const GamePerformance = () => {
-  const [selectedYear, setSelectedYear] = useState("all");
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [availableYears, setAvailableYears] = useState<string[]>([]);
-  const currentYear = new Date().getFullYear();
   
   const [teamStats, setTeamStats] = useState<TeamStats[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
@@ -155,9 +155,9 @@ const GamePerformance = () => {
         
         const earliestYear = new Date(earliestGame[0].date).getFullYear();
         
-        // Generate array of years from earliest to current
-        const years = ["all"];
-        for (let year = currentYear; year >= earliestYear; year--) {
+        // Generate array of years starting with current year
+        const years = [currentYear.toString(), "all"];
+        for (let year = currentYear - 1; year >= earliestYear; year--) {
           years.push(year.toString());
         }
         
@@ -165,7 +165,7 @@ const GamePerformance = () => {
       } catch (error) {
         console.error('Error determining available years:', error);
         // Fallback to showing last 5 years if there's an error
-        const fallbackYears = ["all", ...Array.from({ length: 5 }, (_, i) => (currentYear - i).toString())];
+        const fallbackYears = [currentYear.toString(), "all", ...Array.from({ length: 4 }, (_, i) => (currentYear - (i + 1)).toString())];
         setAvailableYears(fallbackYears);
       }
     };

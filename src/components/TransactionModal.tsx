@@ -57,7 +57,7 @@ export function TransactionModal({
   const [status, setStatus] = useState<TransactionStatus>('completed');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -82,52 +82,6 @@ export function TransactionModal({
     }
   }, [isOpen, user?.activeClub?.id, isClubAdmin, onClose, toast]);
 
-  // Fetch bank accounts and chart of accounts
-  useEffect(() => {
-    const loadData = async () => {
-      if (!user?.activeClub?.id || !isOpen) return;
-      
-      setIsLoading(true);
-      try {
-        // Fetch bank accounts
-        const { data: bankAccountsData, error: bankAccountsError } = await supabase
-          .from('bank_accounts')
-          .select('id, bank, branch')
-          .eq('club_id', user.activeClub.id);
-        
-        if (bankAccountsError) throw bankAccountsError;
-        
-        const formattedBankAccounts = bankAccountsData.map(acc => ({
-          id: acc.id,
-          name: `${acc.bank} - Ag. ${acc.branch}`
-        }));
-        
-        setBankAccounts(formattedBankAccounts);
-        
-        // Fetch chart of accounts
-        const { data: chartAccountsData, error: chartAccountsError } = await supabase
-          .from('chart_of_accounts')
-          .select('id, description')
-          .eq('club_id', user.activeClub.id);
-        
-        if (chartAccountsError) throw chartAccountsError;
-        
-        setChartOfAccounts(chartAccountsData);
-
-      } catch (error) {
-        console.error("Erro ao carregar dados:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro ao carregar dados",
-          description: "Não foi possível carregar os dados necessários.",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadData();
-  }, [user?.activeClub?.id, isOpen]);
 
   // Load transaction data if editing
   useEffect(() => {
