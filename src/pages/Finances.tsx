@@ -491,31 +491,8 @@ const Finances = () => {
               </p>
             </div>
 
-            {/* Individual Accounts */}
-            {isLoadingAccounts ? (
-              <div className="flex justify-center py-2">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-futconnect-600"></div>
-              </div>
-            ) : bankAccounts.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bankAccounts.map((account) => (
-                  <div key={account.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      <Wallet className="h-4 w-4 text-gray-500 mr-2" />
-                      <span className="text-sm font-medium">{account.bank} - Ag. {account.branch}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-base font-semibold text-gray-900">
-                        {formatCurrency(account.currentBalance)}
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Inicial: {formatCurrency(account.initialBalance)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
+            {/* Message if no accounts */}
+            {bankAccounts.length === 0 && (
               <div className="flex flex-col items-center justify-center py-4">
                 <Wallet className="h-10 w-10 text-gray-400 mb-2" />
                 <p className="text-sm text-gray-500 text-center mb-3">

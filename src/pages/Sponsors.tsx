@@ -156,7 +156,7 @@ const Sponsors = () => {
   
   // Novos estados para filtros de ano e mês
   const [availableYears, setAvailableYears] = useState<number[]>([]);
-  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   
   // New state variables for advanced batch event generation
@@ -250,9 +250,16 @@ const Sponsors = () => {
       const uniqueYears = Array.from(new Set(years)).sort();
       setAvailableYears(uniqueYears);
       
-      // Se não houver ano selecionado, usar 'all'
+      // Se não houver ano selecionado, usar o ano atual
       if (selectedYear === 'all') {
-        setSelectedYear('all');
+        const currentYear = getYear(new Date()).toString();
+        // Verifica se o ano atual está disponível nos eventos
+        if (uniqueYears.includes(Number(currentYear))) {
+          setSelectedYear(currentYear);
+        } else {
+          // Se o ano atual não estiver disponível, usa o ano mais recente
+          setSelectedYear(Math.max(...uniqueYears).toString());
+        }
       }
     }
   }, [eventsData]);
