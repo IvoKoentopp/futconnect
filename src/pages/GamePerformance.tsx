@@ -861,7 +861,7 @@ const GamePerformance = () => {
                               </TableHead>
                               <TableHead className="text-center font-semibold">Taxa de Participação</TableHead>
                               <TableHead className="text-center font-semibold">Jogos</TableHead>
-                              <TableHead className="text-center font-semibold">Tempo de Associação (dias)</TableHead>
+                              <TableHead className="text-center font-semibold">Tempo de Associação (anos)</TableHead>
                               <TableHead className="text-center font-semibold">Idade (anos)</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -884,13 +884,13 @@ const GamePerformance = () => {
                                     index + 1
                                   )}
                                 </TableCell>
-                                <TableCell className="font-medium">{player.name}</TableCell>
+                                <TableCell className="font-medium">{player.nickname}</TableCell>
                                 <TableCell className="text-center font-semibold">{player.points.toFixed(2)}</TableCell>
                                 <TableCell className="text-center">
                                   {player.participationRate ? `${player.participationRate.toFixed(2)}%` : '0.00%'}
                                 </TableCell>
                                 <TableCell className="text-center">{player.games}</TableCell>
-                                <TableCell className="text-center">{player.membershipTime}</TableCell>
+                                <TableCell className="text-center">{(player.membershipTime / 365).toFixed(1)}</TableCell>
                                 <TableCell className="text-center">{player.age}</TableCell>
                               </TableRow>
                             ))}

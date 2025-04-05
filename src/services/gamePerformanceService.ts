@@ -33,6 +33,7 @@ export interface PlayerStats {
 export interface ParticipationRankingStats {
   id: string;
   name: string;
+  nickname: string;
   points: number;
   games: number;
   membershipTime: number; // in days
@@ -473,7 +474,7 @@ export const gamePerformanceService = {
       // Get active members for this club
       const { data: activeMembers, error: activeMembersError } = await supabase
         .from('members')
-        .select('id, name, birth_date, registration_date')
+        .select('id, name, nickname, birth_date, registration_date')
         .eq('club_id', clubId)
         .eq('status', 'Ativo');
         
@@ -523,6 +524,7 @@ export const gamePerformanceService = {
         participantStatsMap[member.id] = {
           id: member.id,
           name: member.name,
+          nickname: member.nickname || member.name,
           points: 0,
           games: 0,
           membershipTime: membershipTimeDays > 0 ? membershipTimeDays : 0,
