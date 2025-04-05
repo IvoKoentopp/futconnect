@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, Users, Calendar, DollarSign, Settings, LogOut, Menu, X, User, FileText, ShoppingCart, Settings as SettingsIcon, UserPlus, List, PlusCircle, BarChart, ListChecks, Trophy, BarChart2, UserCog, Receipt, Award, Star, HelpCircle, Music, Mail } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, DollarSign, Settings, LogOut, Menu, X, User, FileText, ShoppingCart, Settings as SettingsIcon, UserPlus, List, PlusCircle, BarChart, ListChecks, Trophy, BarChart2, UserCog, Receipt, Award, Star, HelpCircle, Music, Mail, Bell } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -72,6 +72,10 @@ const clubNavItems = [{
     name: 'Performance',
     path: '/game-performance',
     icon: <Trophy size={16} />
+  }, {
+    name: 'Alertas de Ausência',
+    path: '/game-absence-alerts',
+    icon: <Bell size={16} />
   }]
 }, {
   name: 'Financeiro',

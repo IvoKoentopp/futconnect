@@ -24,6 +24,7 @@ import GamePanel from "./pages/GamePanel";
 import GamePerformance from "./pages/GamePerformance";
 import GameStatistics from "./pages/GameStatistics";
 import GameHighlights from "./pages/GameHighlights";
+import GameAbsenceAlerts from "./pages/GameAbsenceAlerts";
 import Finances from "./pages/Finances";
 import MonthlyFees from "./pages/MonthlyFees";
 import CreateMonthlyFee from "./pages/CreateMonthlyFee";
@@ -231,6 +232,13 @@ const App = () => (
                 <ProtectedRoute>
                   <AdminLayout appMode="club">
                     <GameHighlights />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/game-absence-alerts" element={
+                <ProtectedRoute>
+                  <AdminLayout appMode="club">
+                    <GameAbsenceAlerts />
                   </AdminLayout>
                 </ProtectedRoute>
               } />

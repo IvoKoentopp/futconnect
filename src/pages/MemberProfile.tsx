@@ -145,7 +145,21 @@ const MemberProfile = () => {
       const { data: memberData, error } = await supabase
         .from('members')
         .select(`
-          *,
+          id,
+          name,
+          nickname,
+          email,
+          phone,
+          birth_date,
+          photo_url,
+          registration_date,
+          payment_start_date,
+          departure_date,
+          category,
+          status,
+          sponsor_id,
+          positions,
+          club_id,
           godchildren:members(id, name, nickname, status)
         `)
         .eq('id', memberId)
