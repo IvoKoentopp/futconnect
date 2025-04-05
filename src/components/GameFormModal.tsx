@@ -194,6 +194,7 @@ export function GameFormModal({ isOpen, onClose, onSave, gameToEdit }: GameFormM
                     <FormControl>
                       <Input 
                         placeholder="15:30" 
+                        autoComplete="off"
                         {...field} 
                       />
                     </FormControl>
@@ -212,6 +213,7 @@ export function GameFormModal({ isOpen, onClose, onSave, gameToEdit }: GameFormM
                     <FormControl>
                       <Input 
                         placeholder="Nome ou local do campo" 
+                        autoComplete="off"
                         {...field} 
                       />
                     </FormControl>
@@ -279,6 +281,7 @@ export function GameFormModal({ isOpen, onClose, onSave, gameToEdit }: GameFormM
                     <FormControl>
                       <Input 
                         placeholder="Informações adicionais sobre o jogo" 
+                        autoComplete="off"
                         {...field} 
                       />
                     </FormControl>
