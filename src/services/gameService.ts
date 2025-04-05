@@ -65,6 +65,37 @@ export const gameService = {
     return gamesWithParticipants;
   },
 
+  async initializeGameParticipants(gameId: string, clubId: string): Promise<void> {
+    try {
+      // 1. Buscar todos os membros ativos do clube
+      const { data: activeMembers, error: membersError } = await supabase
+        .from('members')
+        .select('id')
+        .eq('club_id', clubId)
+        .eq('status', 'Ativo');
+
+      if (membersError) throw membersError;
+      if (!activeMembers?.length) return;
+
+      // 2. Criar registros de participação com status 'unconfirmed'
+      const participantRecords = activeMembers.map(member => ({
+        game_id: gameId,
+        member_id: member.id,
+        status: 'unconfirmed'
+      }));
+
+      const { error: insertError } = await supabase
+        .from('game_participants')
+        .insert(participantRecords);
+
+      if (insertError) throw insertError;
+
+    } catch (error) {
+      console.error('Error initializing game participants:', error);
+      // Não propagar o erro para não afetar a criação do jogo
+    }
+  },
+
   async createGame(gameData: any, clubId: string): Promise<Game> {
     // Instead of creating a new Date, use the date directly as provided
     // This avoids any timezone conversion issues
@@ -92,6 +123,10 @@ export const gameService = {
       ...data,
       status: validateGameStatus(data.status)
     } as Game;
+
+    // Inicializar participantes após criar o jogo
+    // Não aguardamos a conclusão para não atrasar a resposta
+    this.initializeGameParticipants(game.id, clubId);
 
     return game;
   },

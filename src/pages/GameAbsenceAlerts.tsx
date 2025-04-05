@@ -20,6 +20,9 @@ const GameAbsenceAlerts = () => {
   const [generatedMessage, setGeneratedMessage] = useState('');
 
   const { data: absences, isLoading } = useQuery({
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
     queryKey: ['absences'],
     queryFn: async () => {
       try {
@@ -36,15 +39,37 @@ const GameAbsenceAlerts = () => {
 
         const lastGame = recentGames[0];
 
-        // 2. Buscar quem faltou no último jogo
-        const { data: lastGameAbsences } = await supabase
+        // 2. Buscar todos os membros ativos do clube
+        const { data: activeMembers } = await supabase
+          .from('members')
+          .select('id, nickname')
+          .eq('club_id', user.activeClub.id)
+          .eq('status', 'Ativo');
+
+        if (!activeMembers?.length) return [];
+
+        // 3. Buscar participantes confirmados do último jogo
+        const { data: confirmedParticipants } = await supabase
           .from('game_participants')
-          .select(`
-            member_id,
-            members!inner(nickname, status)
-          `)
+          .select('member_id')
           .eq('game_id', lastGame.id)
-          .eq('status', 'declined');
+          .eq('status', 'confirmed');
+
+        // Criar um Set com os IDs dos membros confirmados para busca rápida
+        const confirmedMemberIds = new Set(
+          confirmedParticipants?.map(p => p.member_id) || []
+        );
+
+        // 4. Identificar membros ausentes (não confirmados)
+        const lastGameAbsences = activeMembers.filter(
+          member => !confirmedMemberIds.has(member.id)
+        ).map(member => ({
+          member_id: member.id,
+          members: {
+            nickname: member.nickname,
+            status: 'Ativo'
+          }
+        }));
 
         if (!lastGameAbsences?.length) return [];
 
@@ -75,7 +100,15 @@ const GameAbsenceAlerts = () => {
 
           if (previousGames) {
             for (const game of previousGames) {
-              if (game.game_participants[0].status === 'declined') {
+              const { data: participation } = await supabase
+                .from('game_participants')
+                .select('status')
+                .eq('game_id', game.id)
+                .eq('member_id', absence.member_id)
+                .eq('status', 'confirmed')
+                .single();
+
+              if (!participation) {
                 consecutiveMisses++;
                 missedDates.push(new Date(game.date).toLocaleDateString());
               } else {

@@ -203,20 +203,22 @@ const GameStatistics = () => {
         
         console.log('Total participants (excluding Sistema):', filteredParticipations.length);
         
-        // Calculate total confirmed and not confirmed participants per game
-        const gameParticipationMap: Record<string, { confirmed: number, notConfirmed: number }> = {};
+        // Calculate total confirmed, declined and unconfirmed participants per game
+        const gameParticipationMap: Record<string, { confirmed: number, declined: number, unconfirmed: number }> = {};
         
         // Processa apenas participações com membros válidos
         filteredParticipations.forEach(p => {
           if (!gameParticipationMap[p.game_id]) {
-            gameParticipationMap[p.game_id] = { confirmed: 0, notConfirmed: 0 };
+            gameParticipationMap[p.game_id] = { confirmed: 0, declined: 0, unconfirmed: 0 };
           }
           
           // Conta apenas se o membro não for Sistema
           if (p.status === 'confirmed') {
             gameParticipationMap[p.game_id].confirmed += 1;
           } else if (p.status === 'declined') {
-            gameParticipationMap[p.game_id].notConfirmed += 1;
+            gameParticipationMap[p.game_id].declined += 1;
+          } else if (p.status === 'unconfirmed') {
+            gameParticipationMap[p.game_id].unconfirmed += 1;
           }
         });
 
@@ -224,21 +226,25 @@ const GameStatistics = () => {
         
         // Calculate averages
         let totalConfirmed = 0;
-        let totalNotConfirmed = 0;
+        let totalDeclined = 0;
+        let totalUnconfirmed = 0;
         const gameCount = Object.keys(gameParticipationMap).length;
         
         Object.values(gameParticipationMap).forEach(stats => {
           totalConfirmed += stats.confirmed;
-          totalNotConfirmed += stats.notConfirmed;
+          totalDeclined += stats.declined;
+          totalUnconfirmed += stats.unconfirmed;
         });
         
         const avgConfirmed = gameCount > 0 ? (totalConfirmed / gameCount) : 0;
-        const avgNotConfirmed = gameCount > 0 ? (totalNotConfirmed / gameCount) : 0;
+        const avgDeclined = gameCount > 0 ? (totalDeclined / gameCount) : 0;
+        const avgUnconfirmed = gameCount > 0 ? (totalUnconfirmed / gameCount) : 0;
         
         // Calculate the maximum value for percentage calculation
-        const maxAvg = Math.max(avgConfirmed, avgNotConfirmed);
+        const maxAvg = Math.max(avgConfirmed, avgDeclined, avgUnconfirmed);
         const confirmedPercentage = maxAvg > 0 ? (avgConfirmed / maxAvg) * 100 : 0;
-        const notConfirmedPercentage = maxAvg > 0 ? (avgNotConfirmed / maxAvg) * 100 : 0;
+        const declinedPercentage = maxAvg > 0 ? (avgDeclined / maxAvg) * 100 : 0;
+        const unconfirmedPercentage = maxAvg > 0 ? (avgUnconfirmed / maxAvg) * 100 : 0;
         
         const participationStatsData = [
           { 
@@ -248,8 +254,13 @@ const GameStatistics = () => {
           },
           { 
             name: 'Recusados', 
-            value: avgNotConfirmed,
-            percentage: notConfirmedPercentage 
+            value: avgDeclined,
+            percentage: declinedPercentage 
+          },
+          {
+            name: 'Não Responderam',
+            value: avgUnconfirmed,
+            percentage: unconfirmedPercentage
           }
         ];
         
@@ -468,6 +479,21 @@ const GameStatistics = () => {
                         value={participationStats[1].percentage} 
                         className="h-4"
                         indicatorColor="#f97316" // orange-500
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 rounded-full bg-gray-500 mr-2"></div>
+                          <span>Não Responderam</span>
+                        </div>
+                        <span className="font-semibold">{participationStats[2].value.toFixed(1)} jogadores</span>
+                      </div>
+                      <Progress 
+                        value={participationStats[2].percentage} 
+                        className="h-4"
+                        indicatorColor="#6b7280" // gray-500
                       />
                     </div>
                   </div>
