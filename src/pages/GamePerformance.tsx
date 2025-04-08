@@ -65,6 +65,10 @@ const GamePerformance = () => {
   const [sortField, setSortField] = useState<'points' | 'pointsAverage' | 'wins' | 'winRate'>('points');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
+  // Estados para ordenação da aba participação
+  const [participationSortField, setParticipationSortField] = useState<'points' | 'participationRate' | 'effectiveParticipationRate'>('points');
+  const [participationSortDirection, setParticipationSortDirection] = useState<'asc' | 'desc'>('desc');
+  
   // References for PDF export
   const contentRef = useRef<HTMLDivElement>(null);
   
@@ -979,21 +983,107 @@ const GamePerformance = () => {
                             <TableRow>
                               <TableHead className="w-16 text-center font-semibold">Posição</TableHead>
                               <TableHead className="font-semibold">Jogador</TableHead>
-                              <TableHead className="text-center font-semibold">
+                              <TableHead 
+                                className="text-center font-semibold cursor-pointer hover:bg-slate-50"
+                                onClick={() => {
+                                  if (participationSortField === 'points') {
+                                    setParticipationSortDirection(participationSortDirection === 'asc' ? 'desc' : 'asc');
+                                  } else {
+                                    setParticipationSortField('points');
+                                    setParticipationSortDirection('desc');
+                                  }
+                                }}
+                              >
                                 <div className="flex items-center justify-center">
                                   <span>Pontos</span>
-                                  <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
+                                  <div className="ml-1">
+                                    {participationSortField === 'points' ? (
+                                      participationSortDirection === 'desc' ? 
+                                        <ArrowDown className="h-4 w-4" /> : 
+                                        <ArrowUp className="h-4 w-4" />
+                                    ) : (
+                                      <ArrowDown className="h-4 w-4 text-muted-foreground/30" />
+                                    )}
+                                  </div>
                                 </div>
                               </TableHead>
-                              <TableHead className="text-center font-semibold">Taxa de Participação Total</TableHead>
-                              <TableHead className="text-center font-semibold">Taxa de Participação Efetiva</TableHead>
+                              <TableHead 
+                                className="text-center font-semibold cursor-pointer hover:bg-slate-50"
+                                onClick={() => {
+                                  if (participationSortField === 'participationRate') {
+                                    setParticipationSortDirection(participationSortDirection === 'asc' ? 'desc' : 'asc');
+                                  } else {
+                                    setParticipationSortField('participationRate');
+                                    setParticipationSortDirection('desc');
+                                  }
+                                }}
+                              >
+                                <div className="flex items-center justify-center">
+                                  <span>Taxa de Participação Total</span>
+                                  <div className="ml-1">
+                                    {participationSortField === 'participationRate' ? (
+                                      participationSortDirection === 'desc' ? 
+                                        <ArrowDown className="h-4 w-4" /> : 
+                                        <ArrowUp className="h-4 w-4" />
+                                    ) : (
+                                      <ArrowDown className="h-4 w-4 text-muted-foreground/30" />
+                                    )}
+                                  </div>
+                                </div>
+                              </TableHead>
+                              <TableHead 
+                                className="text-center font-semibold cursor-pointer hover:bg-slate-50"
+                                onClick={() => {
+                                  if (participationSortField === 'effectiveParticipationRate') {
+                                    setParticipationSortDirection(participationSortDirection === 'asc' ? 'desc' : 'asc');
+                                  } else {
+                                    setParticipationSortField('effectiveParticipationRate');
+                                    setParticipationSortDirection('desc');
+                                  }
+                                }}
+                              >
+                                <div className="flex items-center justify-center">
+                                  <span>Taxa de Participação Efetiva</span>
+                                  <div className="ml-1">
+                                    {participationSortField === 'effectiveParticipationRate' ? (
+                                      participationSortDirection === 'desc' ? 
+                                        <ArrowDown className="h-4 w-4" /> : 
+                                        <ArrowUp className="h-4 w-4" />
+                                    ) : (
+                                      <ArrowDown className="h-4 w-4 text-muted-foreground/30" />
+                                    )}
+                                  </div>
+                                </div>
+                              </TableHead>
                               <TableHead className="text-center font-semibold">Jogos</TableHead>
                               <TableHead className="text-center font-semibold">Tempo de Associação (anos)</TableHead>
                               <TableHead className="text-center font-semibold">Idade (anos)</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {participationRanking.map((player, index) => (
+                            {[...participationRanking]
+                              .sort((a, b) => {
+                                const getValue = (player: typeof a) => {
+                                  switch (participationSortField) {
+                                    case 'points':
+                                      return player.points;
+                                    case 'participationRate':
+                                      return player.participationRate;
+                                    case 'effectiveParticipationRate':
+                                      return player.effectiveParticipationRate;
+                                    default:
+                                      return 0;
+                                  }
+                                };
+                                
+                                const aValue = getValue(a);
+                                const bValue = getValue(b);
+                                
+                                return participationSortDirection === 'asc'
+                                  ? aValue - bValue
+                                  : bValue - aValue;
+                              })
+                              .map((player, index) => (
                               <TableRow 
                                 key={player.id}
                                 className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
@@ -1030,7 +1120,29 @@ const GamePerformance = () => {
 
                       {/* Mobile view */}
                       <div className="grid grid-cols-1 gap-4 md:hidden">
-                        {participationRanking.map((player, index) => (
+                        {[...participationRanking]
+                          .sort((a, b) => {
+                            const getValue = (player: typeof a) => {
+                              switch (participationSortField) {
+                                case 'points':
+                                  return player.points;
+                                case 'participationRate':
+                                  return player.participationRate;
+                                case 'effectiveParticipationRate':
+                                  return player.effectiveParticipationRate;
+                                default:
+                                  return 0;
+                              }
+                            };
+                            
+                            const aValue = getValue(a);
+                            const bValue = getValue(b);
+                            
+                            return participationSortDirection === 'asc'
+                              ? aValue - bValue
+                              : bValue - aValue;
+                          })
+                          .map((player, index) => (
                           <Card key={player.id}>
                             <CardContent className="pt-6">
                               <div className="space-y-4">
