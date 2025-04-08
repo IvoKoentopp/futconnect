@@ -658,6 +658,12 @@ const GamePerformance = () => {
                                   <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
                                 </div>
                               </TableHead>
+                              <TableHead className="text-center font-semibold">
+                                <div className="flex items-center justify-center">
+                                  <span>Média de Pontos</span>
+                                  <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
+                                </div>
+                              </TableHead>
                               <TableHead className="text-center font-semibold">Jogos</TableHead>
                               <TableHead className="text-center font-semibold">
                                 <div className="flex items-center justify-center">
@@ -695,6 +701,7 @@ const GamePerformance = () => {
                                 </TableCell>
                                 <TableCell className="font-medium">{player.name}</TableCell>
                                 <TableCell className="text-center font-semibold">{player.points.toFixed(1)}</TableCell>
+                                <TableCell className="text-center font-semibold">{(player.points / player.games).toFixed(2)}</TableCell>
                                 <TableCell className="text-center">{player.games}</TableCell>
                                 <TableCell className="text-center">{player.wins}</TableCell>
                                 <TableCell className="text-center">{player.draws}</TableCell>
