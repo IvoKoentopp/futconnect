@@ -39,7 +39,8 @@ export interface ParticipationRankingStats {
   membershipTime: number; // in days
   age: number; // in years
   position: number;
-  participationRate: number; // new field for participation rate
+  participationRate: number; // taxa absoluta (todos os jogos)
+  effectiveParticipationRate: number; // taxa efetiva (jogos após associação)
 }
 
 // Define an interface for the date filter
@@ -508,7 +509,7 @@ export const gamePerformanceService = {
       // Fetch all games for the period
       let gamesQuery = supabase
         .from('games')
-        .select('id')
+        .select('id, date')
         .eq('club_id', clubId)
         .eq('status', 'completed');
       
@@ -547,7 +548,8 @@ export const gamePerformanceService = {
           membershipTime: membershipTimeDays > 0 ? membershipTimeDays : 0,
           age: ageInYears > 0 ? ageInYears : 0,
           position: 0,
-          participationRate: 0
+          participationRate: 0,
+          effectiveParticipationRate: 0
         };
       });
       
@@ -589,21 +591,35 @@ export const gamePerformanceService = {
         }
       }
       
-      // Calculate participation rate and final score for each member
+      // Calculate participation rates and final score for each member
       for (const memberId in participantStatsMap) {
         const member = participantStatsMap[memberId];
         const totalGames = allGames?.length || 0;
         
-        // Calculate participation rate (matches the calculation in useMemberGames.ts)
+        // Find games that happened after member registration
+        const gamesAfterRegistration = allGames?.filter(game => {
+          const gameDate = new Date(game.date);
+          const registrationDate = new Date(activeMembers.find(m => m.id === memberId)?.registration_date || '');
+          return gameDate >= registrationDate;
+        }) || [];
+        
+        // Calculate absolute participation rate (all games)
         const participationRate = totalGames > 0 
           ? (member.games / totalGames) * 100 
           : 0;
         
-        // Fix participation rate to 1 decimal place
-        const fixedParticipationRate = parseFloat(participationRate.toFixed(1));
+        // Calculate effective participation rate (only games after registration)
+        const effectiveParticipationRate = gamesAfterRegistration.length > 0
+          ? (member.games / gamesAfterRegistration.length) * 100
+          : 0;
         
-        // Save the participation rate
+        // Fix participation rates to 1 decimal place
+        const fixedParticipationRate = parseFloat(participationRate.toFixed(1));
+        const fixedEffectiveParticipationRate = parseFloat(effectiveParticipationRate.toFixed(1));
+        
+        // Save both participation rates
         member.participationRate = fixedParticipationRate;
+        member.effectiveParticipationRate = fixedEffectiveParticipationRate;
         
         // Calculate months of membership up to the reference date
         const registrationDate = new Date(activeMembers.find(m => m.id === memberId)!.registration_date);

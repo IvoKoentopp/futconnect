@@ -985,7 +985,8 @@ const GamePerformance = () => {
                                   <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
                                 </div>
                               </TableHead>
-                              <TableHead className="text-center font-semibold">Taxa de Participação</TableHead>
+                              <TableHead className="text-center font-semibold">Taxa de Participação Total</TableHead>
+                              <TableHead className="text-center font-semibold">Taxa de Participação Efetiva</TableHead>
                               <TableHead className="text-center font-semibold">Jogos</TableHead>
                               <TableHead className="text-center font-semibold">Tempo de Associação (anos)</TableHead>
                               <TableHead className="text-center font-semibold">Idade (anos)</TableHead>
@@ -1014,6 +1015,9 @@ const GamePerformance = () => {
                                 <TableCell className="text-center font-semibold">{player.points.toFixed(2)}</TableCell>
                                 <TableCell className="text-center">
                                   {player.participationRate ? `${player.participationRate.toFixed(2)}%` : '0.00%'}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {player.effectiveParticipationRate ? `${player.effectiveParticipationRate.toFixed(2)}%` : '0.00%'}
                                 </TableCell>
                                 <TableCell className="text-center">{player.games}</TableCell>
                                 <TableCell className="text-center">{(player.membershipTime / 365).toFixed(1)}</TableCell>
@@ -1051,9 +1055,16 @@ const GamePerformance = () => {
                                 {/* Estatísticas principais */}
                                 <div className="grid grid-cols-2 gap-2 text-center">
                                   <div className="p-2 rounded-lg bg-slate-50">
-                                    <p className="text-sm text-muted-foreground">Taxa de Participação</p>
-                                    <p className="font-medium">{(player.participationRate * 100).toFixed(1)}%</p>
+                                    <p className="text-sm text-muted-foreground">Taxa Total</p>
+                                    <p className="font-medium">{player.participationRate.toFixed(2)}%</p>
                                   </div>
+                                  <div className="p-2 rounded-lg bg-slate-50">
+                                    <p className="text-sm text-muted-foreground">Taxa Efetiva</p>
+                                    <p className="font-medium">{player.effectiveParticipationRate.toFixed(2)}%</p>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-2 text-center">
                                   <div className="p-2 rounded-lg bg-slate-50">
                                     <p className="text-sm text-muted-foreground">Jogos</p>
                                     <p className="font-medium">{player.games}</p>
