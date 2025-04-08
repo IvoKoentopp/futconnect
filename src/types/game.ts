@@ -19,6 +19,7 @@ export interface GameParticipant {
   game_id: string;
   member_id: string;
   status: 'confirmed' | 'declined' | 'unconfirmed';
+  team?: string;
   created_at: string;
   updated_at: string;
 }

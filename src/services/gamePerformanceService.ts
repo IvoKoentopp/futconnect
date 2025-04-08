@@ -244,7 +244,10 @@ export const gamePerformanceService = {
             member:members(
               id,
               nickname,
-              status
+              status,
+              team:team_members(
+                team
+              )
             )
           )
         `)
@@ -359,30 +362,44 @@ export const gamePerformanceService = {
             });
 
           // Determinar resultado usando o placar calculado
-          const playerTeam = eventsForGame.find(e => e.member_id === participant.member_id)?.team;
-          if (!playerTeam) return;
+          // Buscar o time do jogador através da relação team_members do membro
+          const playerTeam = participant.member?.team?.[0]?.team;
+          if (!playerTeam) {
+            console.warn(`No team found for player ${participant.member_id} in game ${game.id}`);
+            return;
+          }
 
           const gameGoals: Record<string, number> = {};
-          const teamsInGame = [...new Set(eventsForGame.map(e => e.team))];
+          const teamsInGame = [...new Set(game.game_participants
+            .filter(p => p.member?.team?.[0]?.team) // Filtrar apenas participantes com time definido
+            .map(p => p.member.team[0].team))];
 
+          // Inicializar contagem de gols para todos os times
           teamsInGame.forEach(team => {
-            gameGoals[team] = eventsForGame
-              .filter(event => event.team === team && event.event_type === 'goal')
-              .length;
+            gameGoals[team] = 0;
+          });
 
-            // Adicionar gols contra do time adversário
-            const ownGoals = eventsForGame
-              .filter(event => event.team !== team && event.event_type === 'own-goal')
-              .length;
-            
-            gameGoals[team] += ownGoals;
+          // Contar gols e gols contra
+          eventsForGame.forEach(event => {
+            if (!event.team) return;
+
+            if (event.event_type === 'goal') {
+              gameGoals[event.team] = (gameGoals[event.team] || 0) + 1;
+            } else if (event.event_type === 'own-goal') {
+              // Gol contra beneficia o(s) time(s) adversário(s)
+              teamsInGame
+                .filter(t => t !== event.team)
+                .forEach(team => {
+                  gameGoals[team] = (gameGoals[team] || 0) + 1;
+                });
+            }
           });
 
           const teamGoals = gameGoals[playerTeam] || 0;
           const maxOtherTeamGoals = Math.max(
-            ...Object.entries(gameGoals)
-              .filter(([team]) => team !== playerTeam)
-              .map(([, goals]) => goals)
+            ...teamsInGame
+              .filter(team => team !== playerTeam)
+              .map(team => gameGoals[team] || 0)
           );
 
           if (teamGoals > maxOtherTeamGoals) {
