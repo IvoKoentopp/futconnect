@@ -62,6 +62,8 @@ const GamePerformance = () => {
   const [isLoadingParticipation, setIsLoadingParticipation] = useState(true);
   const [isLoadingHighlights, setIsLoadingHighlights] = useState(true);
   const [activeTab, setActiveTab] = useState("teams");
+  const [sortField, setSortField] = useState<'points' | 'pointsAverage' | 'wins' | 'winRate'>('points');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   // References for PDF export
   const contentRef = useRef<HTMLDivElement>(null);
@@ -652,23 +654,68 @@ const GamePerformance = () => {
                             <TableRow>
                               <TableHead className="w-16 text-center font-semibold">Posição</TableHead>
                               <TableHead className="font-semibold">Jogador</TableHead>
-                              <TableHead className="text-center font-semibold">
+                              <TableHead 
+                                className="text-center font-semibold cursor-pointer hover:bg-slate-100"
+                                onClick={() => {
+                                  if (sortField === 'points') {
+                                    setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
+                                  } else {
+                                    setSortField('points');
+                                    setSortDirection('desc');
+                                  }
+                                }}
+                              >
                                 <div className="flex items-center justify-center">
                                   <span>Pontos</span>
-                                  <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
+                                  {sortField === 'points' 
+                                    ? sortDirection === 'desc'
+                                      ? <ArrowDown className="ml-1 h-4 w-4 text-futconnect-600" />
+                                      : <ArrowUp className="ml-1 h-4 w-4 text-futconnect-600" />
+                                    : <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground opacity-50" />
+                                  }
                                 </div>
                               </TableHead>
-                              <TableHead className="text-center font-semibold">
+                              <TableHead 
+                                className="text-center font-semibold cursor-pointer hover:bg-slate-100"
+                                onClick={() => {
+                                  if (sortField === 'pointsAverage') {
+                                    setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
+                                  } else {
+                                    setSortField('pointsAverage');
+                                    setSortDirection('desc');
+                                  }
+                                }}
+                              >
                                 <div className="flex items-center justify-center">
                                   <span>Média de Pontos</span>
-                                  <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
+                                  {sortField === 'pointsAverage'
+                                    ? sortDirection === 'desc'
+                                      ? <ArrowDown className="ml-1 h-4 w-4 text-futconnect-600" />
+                                      : <ArrowUp className="ml-1 h-4 w-4 text-futconnect-600" />
+                                    : <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground opacity-50" />
+                                  }
                                 </div>
                               </TableHead>
                               <TableHead className="text-center font-semibold">Jogos</TableHead>
-                              <TableHead className="text-center font-semibold">
+                              <TableHead 
+                                className="text-center font-semibold cursor-pointer hover:bg-slate-100"
+                                onClick={() => {
+                                  if (sortField === 'wins') {
+                                    setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
+                                  } else {
+                                    setSortField('wins');
+                                    setSortDirection('desc');
+                                  }
+                                }}
+                              >
                                 <div className="flex items-center justify-center">
                                   <span>Vitórias</span>
-                                  <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground" />
+                                  {sortField === 'wins'
+                                    ? sortDirection === 'desc'
+                                      ? <ArrowDown className="ml-1 h-4 w-4 text-futconnect-600" />
+                                      : <ArrowUp className="ml-1 h-4 w-4 text-futconnect-600" />
+                                    : <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground opacity-50" />
+                                  }
                                 </div>
                               </TableHead>
                               <TableHead className="text-center font-semibold">Empates</TableHead>
@@ -677,11 +724,57 @@ const GamePerformance = () => {
                               <TableHead className="text-center font-semibold">Gols Contra</TableHead>
                               <TableHead className="text-center font-semibold">Média de Gols</TableHead>
                               <TableHead className="text-center font-semibold">Defesas</TableHead>
-                              <TableHead className="text-center font-semibold">Aproveitamento</TableHead>
+                              <TableHead 
+                                className="text-center font-semibold cursor-pointer hover:bg-slate-100"
+                                onClick={() => {
+                                  if (sortField === 'winRate') {
+                                    setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
+                                  } else {
+                                    setSortField('winRate');
+                                    setSortDirection('desc');
+                                  }
+                                }}
+                              >
+                                <div className="flex items-center justify-center">
+                                  <span>Aproveitamento</span>
+                                  {sortField === 'winRate'
+                                    ? sortDirection === 'desc'
+                                      ? <ArrowDown className="ml-1 h-4 w-4 text-futconnect-600" />
+                                      : <ArrowUp className="ml-1 h-4 w-4 text-futconnect-600" />
+                                    : <ArrowDown className="ml-1 h-4 w-4 text-muted-foreground opacity-50" />
+                                  }
+                                </div>
+                              </TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {playerStats.map((player, index) => (
+                            {[...playerStats]
+                              .sort((a, b) => {
+                                let aValue, bValue;
+                                switch (sortField) {
+                                  case 'points':
+                                    aValue = a.points;
+                                    bValue = b.points;
+                                    break;
+                                  case 'pointsAverage':
+                                    aValue = a.points / a.games;
+                                    bValue = b.points / b.games;
+                                    break;
+                                  case 'wins':
+                                    aValue = a.wins;
+                                    bValue = b.wins;
+                                    break;
+                                  case 'winRate':
+                                    aValue = parseFloat(a.winRate.replace('%', ''));
+                                    bValue = parseFloat(b.winRate.replace('%', ''));
+                                    break;
+                                  default:
+                                    aValue = a.points;
+                                    bValue = b.points;
+                                }
+                                return sortDirection === 'desc' ? bValue - aValue : aValue - bValue;
+                              })
+                              .map((player, index) => (
                               <TableRow 
                                 key={player.id}
                                 className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
@@ -719,7 +812,33 @@ const GamePerformance = () => {
 
                       {/* Mobile view */}
                       <div className="grid grid-cols-1 gap-4 md:hidden">
-                        {playerStats.map((player, index) => (
+                        {[...playerStats]
+                          .sort((a, b) => {
+                            let aValue, bValue;
+                            switch (sortField) {
+                              case 'points':
+                                aValue = a.points;
+                                bValue = b.points;
+                                break;
+                              case 'pointsAverage':
+                                aValue = a.points / a.games;
+                                bValue = b.points / b.games;
+                                break;
+                              case 'wins':
+                                aValue = a.wins;
+                                bValue = b.wins;
+                                break;
+                              case 'winRate':
+                                aValue = parseFloat(a.winRate.replace('%', ''));
+                                bValue = parseFloat(b.winRate.replace('%', ''));
+                                break;
+                              default:
+                                aValue = a.points;
+                                bValue = b.points;
+                            }
+                            return sortDirection === 'desc' ? bValue - aValue : aValue - bValue;
+                          })
+                          .map((player, index) => (
                           <Card key={player.id}>
                             <CardContent className="pt-6">
                               <div className="space-y-4">
