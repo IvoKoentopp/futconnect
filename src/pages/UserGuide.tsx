@@ -57,8 +57,7 @@ const UserGuide = () => {
                           finanças e relatórios.
                         </li>
                         <li>
-                          <strong>Login de Sócio:</strong> Acesso limitado ao portal do sócio, onde é possível confirmar presença
-                          em jogos, visualizar mensalidades e estatísticas pessoais.
+                          <strong>Login de Sócio:</strong> Acesso total para visualização das informações do clube e manutenção do seu cadastro.
                         </li>
                       </ul>
                     </AccordionContent>
@@ -72,13 +71,13 @@ const UserGuide = () => {
                         um resumo das principais informações:
                       </p>
                       <ul className="list-disc pl-6 space-y-1">
-                        <li>Próximos jogos agendados</li>
+                        <li>Jogadores Destaques</li>
                         <li>Resumo financeiro (mensalidades pendentes)</li>
                         <li>Estatísticas gerais do clube</li>
                         <li>Aniversariantes do mês</li>
                       </ul>
                       <p>
-                        Use o menu lateral para navegar entre as diferentes seções do sistema.
+                        Use o menu superior para navegar entre as diferentes seções do sistema.
                       </p>
                     </AccordionContent>
                   </AccordionItem>
@@ -92,6 +91,9 @@ const UserGuide = () => {
                           <strong>Dashboard:</strong> Visão geral das atividades do clube
                         </li>
                         <li>
+                          <strong>Documentos:</strong> Principais informações do Clube (estatuto, hino, convite)
+                        </li>
+			<li>
                           <strong>Sócios:</strong> Gestão de sócios (cadastro, edição, relatórios)
                         </li>
                         <li>
@@ -134,7 +136,7 @@ const UserGuide = () => {
                       <li>Acesse o menu "Sócios" e clique em "Novo Sócio"</li>
                       <li>Preencha os dados básicos (nome, email, telefone, data de nascimento)</li>
                       <li>Defina as posições que o sócio joga</li>
-                      <li>Selecione a categoria do sócio (Regular, VIP, etc.)</li>
+                      <li>Selecione a categoria do sócio (Contribuinte, Convidado, Colaborador)</li>
                       <li>Clique em "Salvar" para concluir o cadastro</li>
                     </ol>
                     <p className="mt-2 text-sm text-muted-foreground">
@@ -152,8 +154,8 @@ const UserGuide = () => {
                       <li>Filtrar por nome, categoria ou status</li>
                       <li>Editar dados de um sócio existente</li>
                       <li>Inativar ou reativar sócios</li>
-                      <li>Visualizar o histórico de participação nos jogos</li>
-                      <li>Verificar status de pagamento das mensalidades</li>
+                      <li>Alterar senha</li>
+                      <li>Deletar o sócio</li>
                     </ul>
                   </AccordionContent>
                 </AccordionItem>
@@ -202,8 +204,6 @@ const UserGuide = () => {
                     <ol className="list-decimal pl-6 space-y-1">
                       <li>Acesse o menu "Jogos" e clique em "Novo Jogo"</li>
                       <li>Preencha os dados do jogo (título, data, horário, local)</li>
-                      <li>Defina o número máximo de participantes</li>
-                      <li>Selecione opções adicionais (valores, taxa de participação, etc.)</li>
                       <li>Clique em "Salvar" para criar o jogo</li>
                     </ol>
                     <p className="mt-2 text-sm text-muted-foreground">
@@ -219,8 +219,8 @@ const UserGuide = () => {
                     <ul className="list-disc pl-6 space-y-1">
                       <li>Visualizar a lista de jogos agendados e realizados</li>
                       <li>Monitorar confirmações de presença</li>
-                      <li>Gerar times balanceados automaticamente</li>
-                      <li>Registrar eventos do jogo (gols, cartões, etc.)</li>
+                      <li>Gerar times</li>
+                      <li>Registrar eventos do jogo (gols, defesas, etc.)</li>
                       <li>Finalizar jogos e atualizar o placar</li>
                     </ul>
                     <p className="text-sm text-muted-foreground mt-2">
