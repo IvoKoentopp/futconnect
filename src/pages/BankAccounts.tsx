@@ -242,6 +242,26 @@ const BankAccounts = () => {
         new Date(b.date).getTime() - new Date(a.date).getTime()
       );
       
+      // Ensure the running balance is correct for the sorted transactions
+      // The first transaction (newest) should have the final balance
+      if (sortedFilteredTransactions.length > 0) {
+        const finalBalance = account.currentBalance;
+        let currentBalance = finalBalance;
+        
+        // Recalculate running balance in reverse order (from newest to oldest)
+        for (let i = 0; i < sortedFilteredTransactions.length; i++) {
+          const tx = sortedFilteredTransactions[i];
+          sortedFilteredTransactions[i].runningBalance = currentBalance;
+          
+          // Subtract the effect of this transaction to get the previous balance
+          if (tx.type === 'income') {
+            currentBalance -= tx.amount;
+          } else {
+            currentBalance += tx.amount;
+          }
+        }
+      }
+      
       setTransactions(sortedFilteredTransactions);
     } catch (error) {
       console.error('Error loading transactions:', error);
@@ -533,11 +553,6 @@ const BankAccounts = () => {
             <CardTitle className="text-xl font-semibold flex items-center">
               <FileText className="mr-2 h-5 w-5 text-futconnect-600" />
               Extrato Bancário
-              {selectedAccountId && !isLoadingTransactions && (
-                <span className="ml-2 text-sm font-normal text-gray-500">
-                  Saldo atual: <span className="font-semibold text-gray-700">{formatCurrency(getSelectedAccountBalance())}</span>
-                </span>
-              )}
             </CardTitle>
 
             {accounts.length > 0 && (
