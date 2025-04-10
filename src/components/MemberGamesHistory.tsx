@@ -134,10 +134,10 @@ const MemberGamesHistory: React.FC<MemberGamesHistoryProps> = ({
               </TableCell>
             </TableRow>
           ) : (
-            games.map((participation) => (
-              <React.Fragment key={participation.game.id}>
-                {/* Linha para Desktop */}
-                <TableRow className="hidden md:table-row">
+            games.map((participation) => {
+              return [
+                // Linha para Desktop
+                <TableRow key={`desktop-${participation.game.id}`} className="hidden md:table-row">
                   <TableCell>{formatDate(participation.game.date)}</TableCell>
                   <TableCell>{participation.game.title}</TableCell>
                   <TableCell>{participation.game.location}</TableCell>
@@ -154,9 +154,9 @@ const MemberGamesHistory: React.FC<MemberGamesHistoryProps> = ({
                        participation.status === 'declined' ? 'Recusado' : 'Não confirmado'}
                     </Badge>
                   </TableCell>
-                </TableRow>
-                {/* Linha para Mobile */}
-                <TableRow className="md:hidden">
+                </TableRow>,
+                // Linha para Mobile
+                <TableRow key={`mobile-${participation.game.id}`} className="md:hidden">
                   <TableCell>{formatDate(participation.game.date)}</TableCell>
                   <TableCell>
                     <Badge className={getGameStatusBadgeColor(participation.game.status)}>
@@ -172,8 +172,8 @@ const MemberGamesHistory: React.FC<MemberGamesHistoryProps> = ({
                     </Badge>
                   </TableCell>
                 </TableRow>
-              </React.Fragment>
-            ))
+              ];
+            })
           )}
         </TableBody>
       </Table>

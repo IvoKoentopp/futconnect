@@ -264,10 +264,10 @@ const MemberFeesHistory: React.FC<MemberFeesHistoryProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {fees.map((fee, index) => (
-            <React.Fragment key={index}>
-              {/* Linha para Desktop */}
-              <TableRow className="hidden md:table-row">
+          {fees.map((fee, index) => {
+            return [
+              // Linha para Desktop
+              <TableRow key={`desktop-${index}`} className="hidden md:table-row">
                 <TableCell>{formatMonthReference(fee.referenceMonth)}</TableCell>
                 <TableCell>{formatCurrency(fee.amount)}</TableCell>
                 <TableCell>{formatDate(fee.dueDate)}</TableCell>
@@ -278,9 +278,9 @@ const MemberFeesHistory: React.FC<MemberFeesHistoryProps> = ({
                     {getStatusText(fee.status)}
                   </Badge>
                 </TableCell>
-              </TableRow>
-              {/* Linha para Mobile */}
-              <TableRow className="md:hidden">
+              </TableRow>,
+              // Linha para Mobile
+              <TableRow key={`mobile-${index}`} className="md:hidden">
                 <TableCell>{formatMonthReference(fee.referenceMonth)}</TableCell>
                 <TableCell>{formatCurrency(fee.amount)}</TableCell>
                 <TableCell>
@@ -289,8 +289,8 @@ const MemberFeesHistory: React.FC<MemberFeesHistoryProps> = ({
                   </Badge>
                 </TableCell>
               </TableRow>
-            </React.Fragment>
-          ))}
+            ];
+          })}
         </TableBody>
       </Table>
     </div>

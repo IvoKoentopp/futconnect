@@ -260,8 +260,8 @@ const MemberStatistics = () => {
                 </div>
               ) : categoryDistribution.length > 0 ? (
                 <div className="space-y-4">
-                  {categoryDistribution.map((category, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                  {categoryDistribution.map((category) => (
+                    <div key={`category-${category.category}`} className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center mb-1">
                         <div className="flex items-center gap-1">
                           <span className="font-medium text-gray-700">{category.category}</span>
@@ -468,8 +468,8 @@ const MemberStatistics = () => {
                 </div>
               ) : topSponsors.length > 0 ? (
                 <div className="space-y-4">
-                  {topSponsors.map((sponsor, index) => (
-                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                  {topSponsors.map((sponsor) => (
+                    <div key={`sponsor-${sponsor.sponsor_id}`} className="bg-gray-50 p-4 rounded-lg">
                       <div className="flex justify-between items-center mb-1">
                         <div className="flex items-center gap-1">
                           <span className="font-medium text-gray-700">

@@ -75,6 +75,24 @@ const AmountDisplay = ({ amount, type }: { amount: number, type: string }) => {
   }
 };
 
+// Transaction total component
+const TransactionTotal = ({ transactions }: { transactions: Transaction[] }) => {
+  const total = transactions.reduce((sum, t) => {
+    return t.type === 'income' ? sum + t.amount : sum - t.amount;
+  }, 0);
+  
+  const formattedTotal = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(total);
+  
+  const className = total >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium';
+  
+  return (
+    <span className={`ml-1 ${className}`}>{formattedTotal}</span>
+  );
+};
+
 const Finances = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -203,7 +221,7 @@ const Finances = () => {
     if (!user?.activeClub?.id) return;
     
     try {
-      const accounts = await fetchChartOfAccounts();
+      const accounts = await fetchChartOfAccounts(user.activeClub.id);
       setFilteredChartOfAccounts(accounts);
     } catch (error) {
       console.error('Error fetching chart of accounts:', error);
@@ -428,7 +446,7 @@ const Finances = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Finanças</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Movimentações</h1>
           <p className="text-gray-500">
             Gerencie as finanças do {user?.activeClub?.name}
           </p>
@@ -453,62 +471,6 @@ const Finances = () => {
         )}
       </div>
 
-      {/* Consolidated Account Balance Card */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-500 flex items-center">
-            <WalletCards className="mr-2 h-4 w-4 text-futconnect-600" />
-            Saldo das Contas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col space-y-4">
-            {/* Total Balance */}
-            <div className="pb-4 border-b border-gray-100">
-              <div className="text-3xl font-bold text-gray-900">
-                {formatCurrency(totalBalance)}
-              </div>
-              <p className="text-xs text-gray-500 mt-1 flex items-center">
-                {monthlyIncrease > 0 ? (
-                  <>
-                    <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
-                    <span className="text-green-600">
-                      +{formatCurrency(monthlyIncrease)}
-                    </span>
-                    <span className="ml-1">neste mês</span>
-                  </>
-                ) : monthlyIncrease < 0 ? (
-                  <>
-                    <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
-                    <span className="text-red-600">
-                      {formatCurrency(monthlyIncrease)}
-                    </span>
-                    <span className="ml-1">neste mês</span>
-                  </>
-                ) : (
-                  <span>Sem alterações neste mês</span>
-                )}
-              </p>
-            </div>
-
-            {/* Message if no accounts */}
-            {bankAccounts.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-4">
-                <Wallet className="h-10 w-10 text-gray-400 mb-2" />
-                <p className="text-sm text-gray-500 text-center mb-3">
-                  Você ainda não tem contas bancárias cadastradas.
-                </p>
-                {canEdit && (
-                  <Button size="sm" onClick={() => setIsBankAccountModalOpen(true)}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Cadastrar Conta
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -582,42 +544,43 @@ const Finances = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {canEdit && (
-                <Button 
-                  className="bg-futconnect-600 hover:bg-futconnect-700"
-                  onClick={() => setIsTransactionModalOpen(true)}
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Nova Transação
-                </Button>
-              )}
+
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="all" onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
-              <TabsTrigger value="all">
-                Todas
-                <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                  {transactions.length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="income">
-                <TrendingUp className="mr-1 h-4 w-4" />
-                Receitas
-                <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                  {transactions.filter(t => t.type === 'income').length}
-                </span>
-              </TabsTrigger>
-              <TabsTrigger value="expense">
-                <TrendingDown className="mr-1 h-4 w-4" />
-                Despesas
-                <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                  {transactions.filter(t => t.type === 'expense').length}
-                </span>
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex justify-between items-center mb-4">
+              <TabsList>
+                <TabsTrigger value="all">
+                  Todas
+                  <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                    {transactions.length}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="income">
+                  <TrendingUp className="mr-1 h-4 w-4" />
+                  Receitas
+                  <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                    {transactions.filter(t => t.type === 'income').length}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="expense">
+                  <TrendingDown className="mr-1 h-4 w-4" />
+                  Despesas
+                  <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                    {transactions.filter(t => t.type === 'expense').length}
+                  </span>
+                </TabsTrigger>
+              </TabsList>
+              
+              <div className="rounded-md bg-muted p-1 text-muted-foreground">
+                <div className="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium">
+                  Total: 
+                  <TransactionTotal transactions={filteredTransactions} />
+                </div>
+              </div>
+            </div>
             
             <TabsContent value="all" className="m-0">
               <div className="overflow-x-auto">

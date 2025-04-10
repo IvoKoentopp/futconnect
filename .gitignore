@@ -29,3 +29,7 @@ node_modules
 dist
 dist-ssr
 *.local
+
+
+# windsurf rules
+.windsurfrules
