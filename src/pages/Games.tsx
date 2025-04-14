@@ -272,13 +272,28 @@ const Games = () => {
     const gameToShare = games.find(game => game.id === gameId);
     if (gameToShare) {
       try {
+        // Buscar todos os membros ativos do clube para identificar os não confirmados
+        const { data: allMembers, error: membersError } = await supabase
+          .from('members')
+          .select('id, nickname, name')
+          .eq('club_id', user?.activeClub?.id)
+          .in('status', ['Ativo', 'Sistema']);
+        
+        if (membersError) throw membersError;
+        
         // Fetch actual participants with their details
         const { data: participants, error } = await supabase
           .from('game_participants')
-          .select('status, members(nickname, name)')
+          .select('member_id, status, members(nickname, name)')
           .eq('game_id', gameId);
         
         if (error) throw error;
+        
+        // Criar um mapa de participantes para fácil acesso
+        const participantsMap = new Map();
+        participants.forEach(p => {
+          participantsMap.set(p.member_id, p);
+        });
         
         // Group participants by status
         const confirmedParticipants = participants
@@ -289,7 +304,13 @@ const Games = () => {
           .filter(p => p.status === 'declined')
           .map(p => p.members?.nickname || p.members?.name || 'Sem apelido');
         
-        const unconfirmedCount = gameToShare.participants.unconfirmed;
+        // Identificar membros não confirmados (que não responderam)
+        const unconfirmedParticipants = allMembers
+          .filter(member => {
+            const participant = participantsMap.get(member.id);
+            return !participant || participant.status === 'unconfirmed';
+          })
+          .map(member => member.nickname || member.name || 'Sem apelido');
       
         // Format the participant lists with actual names
         const confirmedText = confirmedParticipants.length > 0 
@@ -300,8 +321,8 @@ const Games = () => {
           ? `Não vão jogar (${declinedParticipants.length}): ${declinedParticipants.join(', ')}` 
           : 'Nenhum jogador recusou';
         
-        const unconfirmedText = unconfirmedCount > 0 
-          ? `Não informaram (${unconfirmedCount}): Existem jogadores que não informaram` 
+        const unconfirmedText = unconfirmedParticipants.length > 0 
+          ? `Não informaram (${unconfirmedParticipants.length}): ${unconfirmedParticipants.join(', ')}` 
           : 'Todos os jogadores informaram';
         
         const formattedDate = gameToShare.date 

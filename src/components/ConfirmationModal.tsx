@@ -395,17 +395,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, userId, gameStatus, onConf
     }
   };
 
-  const handleShare = async () => {
-    try {
-      await handleShareParticipants(gameId);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erro ao compartilhar",
-        description: "Não foi possível compartilhar a lista de participantes",
-      });
-    }
-  };
+
 
   const formattedDate = gameDate 
     ? (() => {
