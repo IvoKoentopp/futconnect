@@ -125,9 +125,6 @@ const OverdueFeesTable: React.FC<OverdueFeesTableProps> = ({ clubId }) => {
               <TableRow>
                 <TableHead>Sócio</TableHead>
                 <TableHead>Mês</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Vencimento</TableHead>
-                <TableHead>Dias em atraso</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -135,13 +132,6 @@ const OverdueFeesTable: React.FC<OverdueFeesTableProps> = ({ clubId }) => {
                 <TableRow key={fee.id}>
                   <TableCell className="font-medium">{fee.memberNickname}</TableCell>
                   <TableCell>{formatMonth(fee.referenceMonth)}</TableCell>
-                  <TableCell>{formatCurrency(fee.amount)}</TableCell>
-                  <TableCell>{formatDate(new Date(fee.dueDate))}</TableCell>
-                  <TableCell>
-                    <span className="px-2 py-1 rounded-full bg-red-100 text-red-800 text-xs font-medium">
-                      {calculateDaysOverdue(fee.dueDate)} dias
-                    </span>
-                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

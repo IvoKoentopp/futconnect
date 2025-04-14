@@ -506,7 +506,7 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, userId, gameStatus, onConf
             <DialogTitle className={`text-xl flex ${isMobile ? "flex-col gap-2" : "items-center justify-between"}`}>
               <span className="truncate">{isMobile ? "Participantes" : `Participantes - ${formattedDate}`}</span>
               {isMobile && <span className="text-sm text-muted-foreground">{formattedDate}</span>}
-              <div className={`flex gap-2 ${isMobile ? "flex-wrap mt-2" : ""}`}>
+              <div className={`flex gap-2 ${isMobile ? "flex-wrap mt-2" : ""} mr-8`}>
                 <Button 
                   variant="action"
                   onClick={handleFormTeams}
@@ -522,14 +522,6 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, userId, gameStatus, onConf
                 >
                   <Share2 className={`${isMobile ? "h-3 w-3" : "h-4 w-4"} mr-1`} />
                   {isMobile ? "Compartilhar" : "Compartilhar Lista"}
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={onClose}
-                  className={isMobile ? "h-8 w-8" : ""}
-                >
-                  <X className={`${isMobile ? "h-3 w-3" : "h-4 w-4"}`} />
                 </Button>
               </div>
             </DialogTitle>

@@ -477,7 +477,10 @@ const MonthlyFees = () => {
                                   variant="ghost" 
                                   size="icon"
                                   onClick={() => handleEdit(fee)}
-                                  title="Editar mensalidade"
+                                  disabled={(fee.status === 'paid' || fee.status === 'paid_late') && fee.transactionId ? true : false}
+                                  title={(fee.status === 'paid' || fee.status === 'paid_late') && fee.transactionId ? 
+                                    "Não é possível editar mensalidades pagas com transação associada" : 
+                                    "Editar mensalidade"}
                                   className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                                 >
                                   <Pencil className="h-4 w-4" />
@@ -487,8 +490,8 @@ const MonthlyFees = () => {
                                   variant="ghost" 
                                   size="icon"
                                   onClick={() => handleDelete(fee.id)}
-                                  disabled={fee.status === 'paid' && fee.transactionId ? true : false}
-                                  title={fee.status === 'paid' && fee.transactionId ? 
+                                  disabled={(fee.status === 'paid' || fee.status === 'paid_late') && fee.transactionId ? true : false}
+                                  title={(fee.status === 'paid' || fee.status === 'paid_late') && fee.transactionId ? 
                                     "Não é possível excluir mensalidades pagas com transação associada" : 
                                     "Excluir mensalidade"}
                                   className="text-red-500 hover:text-red-700 hover:bg-red-50"
@@ -547,7 +550,10 @@ const MonthlyFees = () => {
                                 variant="ghost" 
                                 size="icon"
                                 onClick={() => handleEdit(fee)}
-                                title="Editar mensalidade"
+                                disabled={(fee.status === 'paid' || fee.status === 'paid_late') && fee.transactionId ? true : false}
+                                title={(fee.status === 'paid' || fee.status === 'paid_late') && fee.transactionId ? 
+                                  "Não é possível editar mensalidades pagas com transação associada" : 
+                                  "Editar mensalidade"}
                                 className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                               >
                                 <Pencil className="h-4 w-4" />
@@ -557,8 +563,8 @@ const MonthlyFees = () => {
                                 variant="ghost" 
                                 size="icon"
                                 onClick={() => handleDelete(fee.id)}
-                                disabled={fee.status === 'paid' && fee.transactionId ? true : false}
-                                title={fee.status === 'paid' && fee.transactionId ? 
+                                disabled={(fee.status === 'paid' || fee.status === 'paid_late') && fee.transactionId ? true : false}
+                                title={(fee.status === 'paid' || fee.status === 'paid_late') && fee.transactionId ? 
                                   "Não é possível excluir mensalidades pagas com transação associada" : 
                                   "Excluir mensalidade"}
                                 className="text-red-500 hover:text-red-700 hover:bg-red-50"
