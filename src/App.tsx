@@ -41,6 +41,7 @@ import UserGuide from "./pages/UserGuide";
 import { StatutePage } from "@/pages/club/documents/StatutePage";
 import { AnthemPage } from "@/pages/club/documents/AnthemPage";
 import { InvitationPage } from "@/pages/club/documents/InvitationPage";
+import ClubChat from './pages/club/chat';
 import DebugLogger from './components/DebugLogger';
 import { SafeThemeProvider } from './components/SafeThemeProvider';
 
@@ -300,7 +301,13 @@ const App = () => (
                   </AdminLayout>
                 </ProtectedRoute>
               } />
-              
+              <Route path="/club/chat" element={
+                <ProtectedRoute>
+                  <AdminLayout appMode="club">
+                    <ClubChat />
+                  </AdminLayout>
+                </ProtectedRoute>
+              } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
