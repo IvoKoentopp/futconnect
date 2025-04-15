@@ -83,39 +83,43 @@ const GamePerformance = () => {
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
   
-  // Function to generate PDF using exportElementToPdf
+  // Função para obter o texto do período selecionado
+  const getPeriodText = (formatted = false) => {
+    if (selectedYear === "all") {
+      return formatted ? "Todos os Anos" : "Todos_Anos";
+    } else if (selectedMonth === "all") {
+      return formatted ? `Ano de ${selectedYear}` : `Ano_${selectedYear}`;
+    } else {
+      return formatted 
+        ? `${monthNames[parseInt(selectedMonth) - 1]} de ${selectedYear}` 
+        : `${monthNames[parseInt(selectedMonth) - 1]}_${selectedYear}`;
+    }
+  };
+
+  // Função principal para gerar PDF
   const generatePDF = () => {
     try {
-      // Define element ID and filename
-      const elementId = "performance-content";
+      // Mostrar toast informativo
+      toast({
+        title: "Gerando PDF",
+        description: "Por favor aguarde enquanto o relatório é gerado."
+      });
       
-      // Create a descriptive filename
-      const periodText = selectedYear === "all" 
-        ? "Todos_Anos" 
-        : selectedMonth === "all" 
-          ? `Ano_${selectedYear}` 
-          : `${monthNames[parseInt(selectedMonth) - 1]}_${selectedYear}`;
-          
-      let tabText = "";
+      // Chamar a função específica com base na aba ativa
       switch(activeTab) {
         case "teams":
-          tabText = "Times";
+          generateTeamsReport();
           break;
         case "players":
-          tabText = "Jogadores";
+          generatePlayersReport();
           break;
         case "participation":
-          tabText = "Participacao";
+          generateParticipationReport();
           break;
         case "highlights":
-          tabText = "Destaques";
+          generateHighlightsReport();
           break;
       }
-      
-      const fileName = `Performance_${tabText}_${periodText}_${clubName.replace(/\s+/g, '_')}`;
-      
-      // Export the content to PDF (landscape orientation)
-      exportElementToPdf(elementId, fileName, 'l');
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
@@ -124,6 +128,385 @@ const GamePerformance = () => {
         description: "Ocorreu um erro ao gerar o arquivo PDF"
       });
     }
+  };
+  
+  // Gerar relatório de times
+  const generateTeamsReport = () => {
+    // Importar jsPDF e autoTable dinamicamente para evitar problemas de SSR
+    import('jspdf').then(({ default: jsPDF }) => {
+      import('jspdf-autotable').then((autoTableModule) => {
+        const autoTable = autoTableModule.default;
+        
+        // Criar documento em orientação vertical (retrato)
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
+        
+        // Cabeçalho com fundo colorido
+        doc.setFillColor(25, 33, 57); // Cor escura do FutConnect
+        doc.rect(0, 0, pageWidth, 20, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.text('Relatório de Desempenho de Times', pageWidth/2, 12, { align: 'center' });
+        
+        // Título e informações centralizadas
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.text(`Clube: ${clubName}`, pageWidth/2, 30, { align: 'center' });
+        doc.text(`Período: ${getPeriodText(true)}`, pageWidth/2, 38, { align: 'center' });
+        
+        // Definir larguras das colunas
+        const colPosicao = 10;       // Posição
+        const colTime = 40;          // Time
+        const colPontos = 12;        // Pontos
+        const colJogos = 10;         // Jogos
+        const colVitorias = 10;      // Vitórias
+        const colEmpates = 10;       // Empates
+        const colDerrotas = 10;      // Derrotas
+        const colGolsMarcados = 12;  // Gols Marcados
+        const colGolsSofridos = 12;  // Gols Sofridos
+        const colAproveit = 20;      // Aproveitamento
+        
+        // Calcular largura total da tabela
+        const tableWidth = colPosicao + colTime + colPontos + colJogos + colVitorias + 
+                          colEmpates + colDerrotas + colGolsMarcados + colGolsSofridos + colAproveit;
+        
+        // Calcular margens para centralizar a tabela
+        const marginX = Math.max((pageWidth - tableWidth) / 2, 5); // Garantir margem mínima de 5mm
+        
+        // Gerar tabela centralizada
+        autoTable(doc, {
+          startY: 45,
+          head: [['Pos.', 'Time', 'Pts', 'J', 'V', 'E', 'D', 'GM', 'GS', 'Aproveit.']],
+          body: teamStats.map((team, index) => [
+            index + 1,
+            team.name,
+            team.points,
+            team.totalGames,
+            team.wins,
+            team.draws,
+            team.losses,
+            team.goalsScored,
+            team.goalsConceded,
+            team.winRate
+          ]),
+          styles: { 
+            fontSize: 9, 
+            cellPadding: 2,
+            halign: 'center',
+            valign: 'middle'
+          },
+          headStyles: { 
+            fillColor: [25, 33, 57], 
+            fontSize: 9, 
+            halign: 'center',
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          alternateRowStyles: { fillColor: [240, 240, 240] },
+          columnStyles: {
+            0: { cellWidth: colPosicao, halign: 'center' },
+            1: { cellWidth: colTime, halign: 'left' },     // Alinhar nomes à esquerda
+            2: { cellWidth: colPontos, halign: 'center' },
+            3: { cellWidth: colJogos, halign: 'center' },
+            4: { cellWidth: colVitorias, halign: 'center' },
+            5: { cellWidth: colEmpates, halign: 'center' },
+            6: { cellWidth: colDerrotas, halign: 'center' },
+            7: { cellWidth: colGolsMarcados, halign: 'center' },
+            8: { cellWidth: colGolsSofridos, halign: 'center' },
+            9: { cellWidth: colAproveit, halign: 'center' }
+          },
+          margin: { left: marginX, right: marginX },
+          didDrawPage: (data) => {
+            // Adicionar rodapé em cada página
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.5);
+            doc.line(marginX, pageHeight - 15, pageWidth - marginX, pageHeight - 15);
+            
+            doc.setFontSize(8);
+            doc.setTextColor(100, 100, 100);
+            const pageInfo = `Página ${data.pageNumber} de ${(doc as any).internal.getNumberOfPages()}`;
+            doc.text('FutConnect - Relatório de Times', pageWidth/2, pageHeight - 10, { align: 'center' });
+            doc.text(pageInfo, pageWidth/2, pageHeight - 5, { align: 'center' });
+          }
+        });
+        
+        // Salvar o PDF
+        doc.save(`Times_${clubName.replace(/\s+/g, '_')}_${getPeriodText()}.pdf`);
+        
+        // Notificar o usuário
+        toast({
+          title: "PDF Gerado",
+          description: "O relatório de times foi gerado com sucesso."
+        });
+      });
+    });
+  };
+  
+  // Gerar relatório de jogadores
+  const generatePlayersReport = () => {
+    import('jspdf').then(({ default: jsPDF }) => {
+      import('jspdf-autotable').then((autoTableModule) => {
+        const autoTable = autoTableModule.default;
+        
+        // Criar documento em orientação vertical (retrato)
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
+        
+        // Cabeçalho com fundo colorido
+        doc.setFillColor(25, 33, 57);
+        doc.rect(0, 0, pageWidth, 20, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.text('Ranking de Jogadores', pageWidth/2, 12, { align: 'center' });
+        
+        // Título e informações centralizadas
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.text(`Clube: ${clubName}`, pageWidth/2, 30, { align: 'center' });
+        doc.text(`Período: ${getPeriodText(true)}`, pageWidth/2, 38, { align: 'center' });
+        
+        // Definir larguras das colunas
+        const colPosicao = 10;      // Posição
+        const colJogador = 40;      // Jogador
+        const colPontos = 15;       // Pontos
+        const colVitorias = 15;     // Vitórias
+        const colEmpates = 15;      // Empates
+        const colDerrotas = 15;     // Derrotas
+        const colGols = 15;         // Gols
+        const colGolsContra = 15;   // Gols Contra
+        const colDefesas = 15;      // Defesas
+        
+        // Calcular largura total da tabela
+        const tableWidth = colPosicao + colJogador + colPontos + colVitorias + colEmpates + 
+                          colDerrotas + colGols + colGolsContra + colDefesas;
+        
+        // Calcular margens para centralizar a tabela
+        const marginX = Math.max((pageWidth - tableWidth) / 2, 5); // Garantir margem mínima de 5mm
+        
+        // Formatar pontos com uma casa decimal
+        const formatarPontos = (pontos: number) => pontos.toFixed(1);
+        
+        // Gerar tabela centralizada com as colunas solicitadas
+        autoTable(doc, {
+          startY: 45,
+          head: [['Pos.', 'Jogador', 'Pontos', 'Vit.', 'Emp.', 'Der.', 'Gols', 'G.C.', 'Def.']],
+          body: playerStats.map((player, index) => [
+            index + 1,
+            player.nickname || player.name,
+            formatarPontos(player.points),
+            player.wins,
+            player.draws,
+            player.losses,
+            player.goals,
+            player.ownGoals,
+            player.saves
+          ]),
+          styles: { 
+            fontSize: 9, 
+            cellPadding: 2,
+            halign: 'center',
+            valign: 'middle'
+          },
+          headStyles: { 
+            fillColor: [25, 33, 57], 
+            fontSize: 9, 
+            halign: 'center',
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          alternateRowStyles: { fillColor: [240, 240, 240] },
+          columnStyles: {
+            0: { cellWidth: colPosicao, halign: 'center' },
+            1: { cellWidth: colJogador, halign: 'left' },   // Alinhar nomes à esquerda
+            2: { cellWidth: colPontos, halign: 'center' },
+            3: { cellWidth: colVitorias, halign: 'center' },
+            4: { cellWidth: colEmpates, halign: 'center' },
+            5: { cellWidth: colDerrotas, halign: 'center' },
+            6: { cellWidth: colGols, halign: 'center' },
+            7: { cellWidth: colGolsContra, halign: 'center' },
+            8: { cellWidth: colDefesas, halign: 'center' }
+          },
+          margin: { left: marginX, right: marginX },
+          didDrawPage: (data) => {
+            // Adicionar rodapé em cada página
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.5);
+            doc.line(marginX, pageHeight - 15, pageWidth - marginX, pageHeight - 15);
+            
+            doc.setFontSize(8);
+            doc.setTextColor(100, 100, 100);
+            const pageInfo = `Página ${data.pageNumber} de ${(doc as any).internal.getNumberOfPages()}`;
+            doc.text('FutConnect - Relatório de Jogadores', pageWidth/2, pageHeight - 10, { align: 'center' });
+            doc.text(pageInfo, pageWidth/2, pageHeight - 5, { align: 'center' });
+          }
+        });
+        
+        // Salvar o PDF
+        doc.save(`Jogadores_${clubName.replace(/\s+/g, '_')}_${getPeriodText()}.pdf`);
+        
+        // Notificar o usuário
+        toast({
+          title: "PDF Gerado",
+          description: "O ranking de jogadores foi gerado com sucesso."
+        });
+      });
+    });
+  };
+  
+  // Gerar relatório de participação
+  const generateParticipationReport = () => {
+    import('jspdf').then(({ default: jsPDF }) => {
+      import('jspdf-autotable').then((autoTableModule) => {
+        const autoTable = autoTableModule.default;
+        
+        // Criar documento em orientação vertical (retrato)
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
+        
+        // Cabeçalho com fundo colorido
+        doc.setFillColor(25, 33, 57); // Cor escura do FutConnect
+        doc.rect(0, 0, pageWidth, 20, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.text('Ranking de Participação', pageWidth/2, 12, { align: 'center' });
+        
+        // Título e informações centralizadas
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.text(`Clube: ${clubName}`, pageWidth/2, 30, { align: 'center' });
+        doc.text(`Período: ${getPeriodText(true)}`, pageWidth/2, 38, { align: 'center' });
+        
+        // Definir larguras das colunas
+        const colPosicao = 12;
+        const colJogador = 40;
+        const colPontos = 20;
+        const colJogos = 15;
+        const colPartTotal = 25;
+        const colPartEfetiva = 25;
+        
+        // Calcular largura total da tabela
+        const tableWidth = colPosicao + colJogador + colPontos + colJogos + colPartTotal + colPartEfetiva;
+        
+        // Calcular margens para centralizar a tabela
+        const marginX = Math.max((pageWidth - tableWidth) / 2, 10); // Garantir margem mínima de 10mm
+        
+        // Gerar tabela centralizada
+        autoTable(doc, {
+          startY: 45,
+          head: [['Pos.', 'Jogador', 'Pontos', 'Jogos', 'Part. Total', 'Part. Efetiva']],
+          body: participationRanking.map((player, index) => [
+            index + 1,
+            player.nickname || player.name,
+            player.points,
+            player.games,
+            `${player.participationRate}%`,
+            `${player.effectiveParticipationRate}%`
+          ]),
+          styles: { 
+            fontSize: 10, 
+            cellPadding: 2,
+            halign: 'center', // Centralizar todo o conteúdo por padrão
+            valign: 'middle'
+          },
+          headStyles: { 
+            fillColor: [25, 33, 57], 
+            fontSize: 9, 
+            halign: 'center',
+            textColor: [255, 255, 255],
+            fontStyle: 'bold'
+          },
+          alternateRowStyles: { fillColor: [240, 240, 240] },
+          columnStyles: {
+            0: { cellWidth: colPosicao, halign: 'center' },
+            1: { cellWidth: colJogador, halign: 'left' },   // Alinhar nomes à esquerda
+            2: { cellWidth: colPontos, halign: 'center' },
+            3: { cellWidth: colJogos, halign: 'center' },
+            4: { cellWidth: colPartTotal, halign: 'center' },
+            5: { cellWidth: colPartEfetiva, halign: 'center' }
+          },
+          margin: { left: marginX, right: marginX },
+          didDrawPage: (data) => {
+            // Adicionar rodapé em cada página
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.5);
+            doc.line(marginX, pageHeight - 15, pageWidth - marginX, pageHeight - 15);
+            
+            doc.setFontSize(8);
+            doc.setTextColor(100, 100, 100);
+            const pageInfo = `Página ${data.pageNumber} de ${(doc as any).internal.getNumberOfPages()}`;
+            doc.text('FutConnect - Relatório de Participação', pageWidth/2, pageHeight - 10, { align: 'center' });
+            doc.text(pageInfo, pageWidth/2, pageHeight - 5, { align: 'center' });
+          }
+        });
+        
+        // Salvar o PDF
+        doc.save(`Participacao_${clubName.replace(/\s+/g, '_')}_${getPeriodText()}.pdf`);
+        
+        // Notificar o usuário
+        toast({
+          title: "PDF Gerado",
+          description: "O ranking de participação foi gerado com sucesso."
+        });
+      });
+    });
+  };
+  
+  // Gerar relatório de destaques
+  const generateHighlightsReport = () => {
+    import('jspdf').then(({ default: jsPDF }) => {
+      import('jspdf-autotable').then((autoTableModule) => {
+        const autoTable = autoTableModule.default;
+        const doc = new jsPDF('l', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
+        
+        // Cabeçalho
+        doc.setFillColor(25, 33, 57);
+        doc.rect(0, 0, pageWidth, 20, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(14);
+        doc.text('Relatório de Jogadores Destaque', pageWidth/2, 12, { align: 'center' });
+        
+        // Informações do clube e período
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(12);
+        doc.text(`Clube: ${clubName}`, 15, 30);
+        doc.text(`Período: ${getPeriodText(true)}`, 15, 38);
+        
+        // Tabela de destaques
+        autoTable(doc, {
+          startY: 45,
+          head: [['Data', 'Campo', 'Jogador', 'Votos']],
+          body: highlights.map(highlight => [
+            highlight.date,
+            highlight.field || 'Não informado',
+            highlight.nickname,
+            highlight.votes
+          ]),
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [25, 33, 57] },
+          alternateRowStyles: { fillColor: [240, 240, 240] }
+        });
+        
+        // Rodapé
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.text(`FutConnect - Página ${i} de ${pageCount}`, pageWidth/2, pageHeight - 10, { align: 'center' });
+        }
+        
+        doc.save(`Destaques_${clubName.replace(/\s+/g, '_')}_${getPeriodText()}.pdf`);
+        
+        toast({
+          title: "PDF Gerado",
+          description: "O relatório de destaques foi gerado com sucesso."
+        });
+      });
+    });
   };
   
   useEffect(() => {

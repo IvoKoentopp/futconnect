@@ -344,11 +344,16 @@ const FinancialStatement = () => {
 
   // Custom label renderer for pie chart
   const renderCustomizedPieLabel = (props: any) => {
-    const { cx, cy, midAngle, outerRadius, fill, percent, value, name } = props;
+    const { cx, cy, midAngle, innerRadius, outerRadius, fill, percent, value, name } = props;
     const RADIAN = Math.PI / 180;
-    const radius = outerRadius * 1.3;
+    // Ajuste o raio para posicionar melhor as labels
+    const radius = outerRadius * 1.1;
+    // Calcule a posição x e y com base no ângulo médio
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * radius * Math.sin(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    
+    // Só renderize a label se o percentual for significativo (maior que 5%)
+    if (percent < 0.05) return null;
     
     return (
       <text 
@@ -357,9 +362,9 @@ const FinancialStatement = () => {
         fill={fill}
         textAnchor={x > cx ? 'start' : 'end'} 
         dominantBaseline="central"
-        className="text-xs md:text-sm"
+        className="text-xs md:text-sm font-medium"
       >
-        {name} ({(percent * 100).toFixed(1)}%)
+        {`${(percent * 100).toFixed(0)}%`}
       </text>
     );
   };
@@ -604,13 +609,19 @@ const FinancialStatement = () => {
                         paddingAngle={5}
                         dataKey="value"
                         label={renderCustomizedPieLabel}
-                        labelLine={true}
+                        labelLine={false}
                       >
                         {chartData.expensesDistribution.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.fill} />
                         ))}
                       </Pie>
                       <Tooltip content={<CustomTooltip />} />
+                      <Legend 
+                        layout="vertical" 
+                        verticalAlign="middle" 
+                        align="right"
+                        wrapperStyle={{ fontSize: '12px', paddingLeft: '10px' }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </CardContent>

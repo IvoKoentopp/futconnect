@@ -522,59 +522,59 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
     // Configurações de fonte
     doc.setFont('helvetica');
 
-    // Cabeçalho
+    // Cabeçalho (reduzido)
     doc.setFillColor(colors.dark);
-    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.rect(0, 0, pageWidth, 30, 'F');
     
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.text('Estatísticas do Jogo', pageWidth/2, 25, { align: 'center' });
+    doc.setFontSize(16);
+    doc.text('Estatísticas do Jogo', pageWidth/2, 20, { align: 'center' });
     
-    // Informações do jogo
+    // Informações do jogo (mais compactas)
     doc.setTextColor(colors.dark);
-    doc.setFontSize(12);
-    doc.text(gameData?.title || 'Jogo sem título', margin, 55);
+    doc.setFontSize(11);
+    doc.text(gameData?.title || 'Jogo sem título', margin, 40);
     doc.setTextColor(colors.medium);
-    doc.setFontSize(10);
-    doc.text(format(new Date(gameData?.date), 'dd/MM/yyyy HH:mm'), margin, 62);
+    doc.setFontSize(9);
+    doc.text(format(new Date(gameData?.date), 'dd/MM/yyyy HH:mm'), margin, 46);
 
-    // Placar
+    // Placar (reduzido)
     doc.setFillColor(colors.lighter);
-    doc.rect(margin, 70, contentWidth, 30, 'F');
+    doc.rect(margin, 50, contentWidth, 20, 'F');
     doc.setDrawColor(colors.border);
-    doc.rect(margin, 70, contentWidth, 30, 'S');
+    doc.rect(margin, 50, contentWidth, 20, 'S');
 
-    let yPos = 85;
+    let yPos = 60;
     Object.entries(teamScores).forEach(([team, score], index) => {
       if (index < 2) {
         const xPos = index === 0 ? pageWidth/3 : (2*pageWidth/3);
-        doc.setFontSize(16);
+        doc.setFontSize(14);
         doc.setTextColor(colors.dark);
         doc.text(score.toString(), xPos, yPos, { align: 'center' });
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setTextColor(colors.medium);
-        doc.text(getTeamName(team), xPos, yPos + 8, { align: 'center' });
+        doc.text(getTeamName(team), xPos, yPos + 6, { align: 'center' });
       }
     });
 
-    // Resumo
-    yPos = 120;
+    // Resumo (reduzido e compacto)
+    yPos = 80;
     doc.setFillColor(colors.lighter);
-    doc.rect(margin, yPos - 10, contentWidth, 35, 'F');
+    doc.rect(margin, yPos - 5, contentWidth, 25, 'F');
     doc.setDrawColor(colors.border);
-    doc.rect(margin, yPos - 10, contentWidth, 35, 'S');
+    doc.rect(margin, yPos - 5, contentWidth, 25, 'S');
 
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setTextColor(colors.dark);
     doc.text('Resumo', margin + 5, yPos);
 
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(colors.medium);
-    doc.text(`Total de Gols: ${totalGoals}`, margin + 5, yPos + 10);
-    doc.text(`Total de Defesas: ${totalSaves}`, pageWidth/2, yPos + 10);
+    doc.text(`Total de Gols: ${totalGoals}`, margin + 5, yPos + 8);
+    doc.text(`Total de Defesas: ${totalSaves}`, pageWidth/2, yPos + 8);
 
     // Estatísticas por Time
-    yPos = 165;
+    yPos = 110;
     doc.setFontSize(12);
     doc.setTextColor(colors.dark);
     doc.text('Estatísticas por Time', margin, yPos);
@@ -584,13 +584,13 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
     let currentY = yPos + 10;
 
     Object.entries(teamPlayers).forEach(([team, players], teamIndex) => {
-      // Cabeçalho do time
+      // Cabeçalho do time (mais compacto)
       doc.setFillColor(colors.dark);
-      doc.rect(margin, currentY, contentWidth, 8, 'F');
+      doc.rect(margin, currentY, contentWidth, 7, 'F');
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(10);
-      doc.text(getTeamName(team), margin + 5, currentY + 6);
-      currentY += 8;
+      doc.setFontSize(9);
+      doc.text(getTeamName(team), margin + 5, currentY + 5);
+      currentY += 7;
 
       // Tabela de jogadores
       const tableData = players.map(player => {
@@ -609,15 +609,16 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
         body: tableData,
         margin: { left: margin, right: margin },
         styles: {
-          fontSize: 9,
+          fontSize: 8,
           textColor: colors.medium,
           lineColor: colors.border,
           lineWidth: 0.1,
+          cellPadding: 1, // Reduzir o padding das células
         },
         headStyles: {
           fillColor: colors.medium,
           textColor: '#ffffff',
-          fontSize: 9,
+          fontSize: 8,
           fontStyle: 'bold',
         },
         alternateRowStyles: {
@@ -632,7 +633,7 @@ export function GameStatisticsModal({ isOpen, onClose, gameId }: GameStatisticsM
       });
 
       // @ts-ignore - lastAutoTable é adicionado pelo plugin
-      currentY = doc.lastAutoTable.finalY + 10;
+      currentY = doc.lastAutoTable.finalY + 5; // Reduzir o espaço entre tabelas
     });
 
     // Rodapé

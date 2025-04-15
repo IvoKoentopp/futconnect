@@ -162,12 +162,14 @@ const GameStatistics = () => {
       
       setCancellationReasons(reasonsData);
       
-      // Process games by field
-      const fields = games?.reduce((acc: any, game: any) => {
-        const field = game.location || 'Não especificado';
-        acc[field] = (acc[field] || 0) + 1;
-        return acc;
-      }, {});
+      // Process games by field - apenas jogos realizados (completed)
+      const fields = games
+        ?.filter(game => game.status === 'completed')
+        ?.reduce((acc: any, game: any) => {
+          const field = game.location || 'Não especificado';
+          acc[field] = (acc[field] || 0) + 1;
+          return acc;
+        }, {});
       
       const fieldsData = Object.keys(fields || {}).map(key => ({
         name: key,
