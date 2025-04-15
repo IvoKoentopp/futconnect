@@ -438,40 +438,33 @@ const ConfirmationModal = ({ isOpen, onClose, gameId, userId, gameStatus, onConf
     const fetchMembers = async () => {
       setLoading(true);
       try {
-        console.log('Fetching members for game:', gameId, 'and club:', user.activeClub.id);
+        console.log('Fetching participants for game:', gameId);
         
-        const { data: membersData, error: membersError } = await supabase
-          .from('members')
-          .select('id, nickname')
-          .eq('club_id', user.activeClub.id)
-          .in('status', ['Ativo', 'Sistema']);
-        
-        if (membersError) throw membersError;
-        console.log('Fetched members:', membersData?.length);
-        
+        // Buscar apenas os participantes do jogo com informações do membro
         const { data: participantsData, error: participantsError } = await supabase
           .from('game_participants')
-          .select('member_id, status')
+          .select(`
+            id,
+            member_id,
+            status,
+            members (id, nickname)
+          `)
           .eq('game_id', gameId);
         
         if (participantsError) throw participantsError;
         console.log('Fetched participants:', participantsData?.length);
         
-        const participantsMap = new Map();
-        participantsData?.forEach(participant => {
-          participantsMap.set(participant.member_id, participant.status);
-        });
-        
-        const combinedMembers = membersData?.map(member => ({
-          id: member.id,
-          nickname: member.nickname || member.id,
-          status: (participantsMap.get(member.id) || 'unconfirmed') as 'confirmed' | 'declined' | 'unconfirmed'
+        // Transformar os dados para o formato esperado pelo componente
+        const formattedMembers = participantsData?.map(participant => ({
+          id: participant.member_id,
+          nickname: participant.members?.nickname || participant.member_id,
+          status: participant.status as 'confirmed' | 'declined' | 'unconfirmed'
         })) || [];
         
-        console.log('Combined members:', combinedMembers.length);
-        console.log('Confirmed members:', combinedMembers.filter(m => m.status === 'confirmed').length);
+        console.log('Formatted members:', formattedMembers.length);
+        console.log('Confirmed members:', formattedMembers.filter(m => m.status === 'confirmed').length);
         
-        setMembers(combinedMembers);
+        setMembers(formattedMembers);
       } catch (error: any) {
         console.error('Error loading members:', error);
         toast({
