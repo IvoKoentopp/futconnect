@@ -310,7 +310,43 @@ export const gamePerformanceService = {
 
       console.log(`Found ${activePlayerIds.size} active players`);
 
-      // 6. Processar cada jogo
+      // 6. Buscar todas as formações de times para os jogos
+      const { data: allTeamFormations, error: formationsError } = await supabase
+        .from('team_formations')
+        .select('id, game_id')
+        .in('game_id', games.map(game => game.id))
+        .eq('is_active', true);
+        
+      if (formationsError) {
+        console.error('Error fetching team formations:', formationsError);
+        throw formationsError;
+      }
+      
+      // Mapear formações por jogo para acesso rápido
+      const formationsByGame = (allTeamFormations || []).reduce((acc, formation) => {
+        acc[formation.game_id] = formation.id;
+        return acc;
+      }, {} as Record<string, string>);
+      
+      // 7. Buscar todos os membros de times para as formações encontradas
+      const { data: allTeamMembers, error: teamMembersError } = await supabase
+        .from('team_members')
+        .select('team_formation_id, member_id, team')
+        .in('team_formation_id', (allTeamFormations || []).map(formation => formation.id));
+        
+      if (teamMembersError) {
+        console.error('Error fetching team members:', teamMembersError);
+        throw teamMembersError;
+      }
+      
+      // Mapear membros de time por formação e jogador para acesso rápido
+      const teamMembersByFormationAndPlayer = (allTeamMembers || []).reduce((acc, member) => {
+        const key = `${member.team_formation_id}_${member.member_id}`;
+        acc[key] = member.team;
+        return acc;
+      }, {} as Record<string, string>);
+      
+      // 8. Processar cada jogo
       games.forEach(game => {
         if (!game.game_participants) return;
         
@@ -363,8 +399,22 @@ export const gamePerformanceService = {
             });
 
           // Determinar resultado usando o placar calculado
-          // Buscar o time do jogador através da relação team_members do membro
-          const playerTeam = participant.member?.team?.[0]?.team;
+          // Buscar o time do jogador através da relação team_formations e team_members para este jogo específico
+          let playerTeam: string | undefined;
+          
+          // Verificar se existe uma formação para este jogo
+          const formationId = formationsByGame[game.id];
+          if (formationId) {
+            // Verificar se o jogador está atribuído a um time nesta formação
+            const teamMemberKey = `${formationId}_${participant.member_id}`;
+            playerTeam = teamMembersByFormationAndPlayer[teamMemberKey];
+          }
+          
+          // Se não encontrou time específico para este jogo, usar o time padrão do membro (fallback)
+          if (!playerTeam) {
+            playerTeam = participant.member?.team?.[0]?.team;
+          }
+          
           if (!playerTeam) {
             console.warn(`No team found for player ${participant.member_id} in game ${game.id}`);
             return;
