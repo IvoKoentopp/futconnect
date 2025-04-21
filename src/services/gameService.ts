@@ -72,7 +72,7 @@ export const gameService = {
         .from('members')
         .select('id')
         .eq('club_id', clubId)
-        .eq('status', 'Ativo');
+        .in('status', ['Ativo', 'Sistema']);
 
       if (membersError) throw membersError;
       if (!activeMembers?.length) return;

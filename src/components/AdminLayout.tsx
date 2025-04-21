@@ -119,7 +119,7 @@ const clubNavItems = [{
   path: '/club/user-guide',
   icon: <HelpCircle size={20} />
 }, {
-  name: 'CoalaBot',
+  name: 'Futebot',
   external: true,
   icon: <Bot size={20} />,
   onClick: () => window.open('https://chatvolt.ai/@coalabot', '_blank')
