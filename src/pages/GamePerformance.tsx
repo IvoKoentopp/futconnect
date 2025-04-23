@@ -617,7 +617,6 @@ const GamePerformance = () => {
         setIsLoadingParticipation(false);
       }
     };
-    
     fetchParticipationRanking();
   }, [clubId, selectedYear, selectedMonth]);
 
@@ -632,110 +631,57 @@ const GamePerformance = () => {
         setIsLoadingHighlights(false);
         return;
       }
-      
       setIsLoadingHighlights(true);
-      
       try {
-        // Buscar apenas jogos finalizados do clube atual
-        const { data: finishedGames, error: gamesError } = await supabase
-          .from('game_voting_control')
+        // Buscar destaques diretamente na tabela game_highlights
+        let query = supabase
+          .from('game_highlights')
           .select(`
+            id,
             game_id,
-            games!inner (
-              id,
-              date,
-              club_id
-            )
+            votes_count,
+            is_winner,
+            member:member_id (name, nickname, photo_url),
+            game:game_id (date, location, club_id)
           `)
-          .eq('is_finalized', true)
-          .eq('games.club_id', clubId)
-          .order('games(date)', { ascending: false });
+          .eq('is_winner', true)
+          .eq('game.club_id', clubId);
 
-        if (gamesError) {
-          console.error('Error fetching games:', gamesError);
-          toast({
-            variant: "destructive",
-            title: "Erro ao carregar jogos",
-            description: gamesError.message || "Ocorreu um erro ao buscar os jogos com votação finalizada."
-          });
-          setIsLoadingHighlights(false);
-          return;
+        // Remover filtros por data na query, pois game.date não existe em game_highlights
+        // Filtros de ano/mês serão aplicados após o fetch, em memória
+
+        // Não ordenar na query, pois 'date' não existe em game_highlights nem pode ser usada como foreignTable
+        const { data, error } = await query;
+        if (error) {
+          throw error;
         }
-
-        console.log('Query Debug:', {
-          clubId,
-          finishedGames,
-          filters: {
-            is_finalized: true,
-            club_id: clubId
-          }
-        });
-
-        if (!finishedGames || finishedGames.length === 0) {
-          console.log('No finished games found');
-          setHighlights([]);
-          setIsLoadingHighlights(false);
-          return;
-        }
-
-        // Filtrar por ano/mês se selecionados
-        const filteredGames = finishedGames.filter(g => {
-          const gameDate = new Date(g.games.date);
-          
-          if (selectedYear !== "all") {
-            if (gameDate.getFullYear() !== parseInt(selectedYear)) {
-              return false;
-            }
-            
+        // Filtrar por ano/mês em memória
+        let filteredData = data || [];
+        if (selectedYear !== "all") {
+          filteredData = filteredData.filter((highlight: any) => {
+            const gameDate = highlight.game?.date ? new Date(highlight.game.date) : null;
+            if (!gameDate) return false;
+            if (gameDate.getFullYear() !== parseInt(selectedYear)) return false;
             if (selectedMonth !== "all") {
-              if (gameDate.getMonth() !== parseInt(selectedMonth) - 1) {
-                return false;
-              }
+              if (gameDate.getMonth() + 1 !== parseInt(selectedMonth)) return false;
             }
-          }
-          
-          return true;
+            return true;
+          });
+        }
+        // Ordenar por data do jogo em memória (mais recentes primeiro)
+        filteredData.sort((a: any, b: any) => {
+          const dateA = a.game?.date ? new Date(a.game.date).getTime() : 0;
+          const dateB = b.game?.date ? new Date(b.game.date).getTime() : 0;
+          return dateB - dateA;
         });
-
-        console.log('Filtered Games:', filteredGames);
-
-        if (filteredGames.length === 0) {
-          console.log('No games after filtering');
-          setHighlights([]);
-          setIsLoadingHighlights(false);
-          return;
-        }
-
-        // Para cada jogo finalizado, buscar o destaque vencedor usando o highlightService
-        const winners = [];
-        for (const game of filteredGames) {
-          // Verificar se o jogo pertence ao clube atual
-          if (game.games.club_id === clubId) {
-            const winner = await highlightService.getWinner(game.game_id);
-            console.log('Game ID:', game.game_id, 'Winner:', winner);
-            if (winner) {
-              winners.push({
-                ...winner,
-                game: {
-                  ...winner.game,
-                  date: game.games.date // Usar a data do jogo da query principal
-                }
-              });
-            }
-          }
-        }
-
-        console.log('Winners:', winners);
-
-        // Formatar os vencedores para exibição
-        const formattedHighlights: Highlight[] = winners.map(winner => ({
-          date: new Date(winner.game.date).toLocaleDateString('pt-BR'),
-          field: winner.game.location,
-          nickname: winner.member?.nickname || winner.member?.name || 'Sem nome',
-          votes: winner.votes_count || 0,
-          is_winner: winner.is_winner
+        // Formatar os destaques para exibição
+        const formattedHighlights: Highlight[] = filteredData.map((highlight: any) => ({
+          date: highlight.game?.date ? new Date(highlight.game.date).toLocaleDateString('pt-BR') : '',
+          field: highlight.game?.location || 'Não informado',
+          nickname: highlight.member?.nickname || highlight.member?.name || 'Sem nome',
+          votes: highlight.votes_count || 0,
+          is_winner: highlight.is_winner
         }));
-
         setHighlights(formattedHighlights);
       } catch (error: any) {
         console.error('Error fetching highlights:', error);
@@ -748,10 +694,9 @@ const GamePerformance = () => {
         setIsLoadingHighlights(false);
       }
     };
-
     fetchHighlights();
   }, [clubId, selectedYear, selectedMonth]);
-  
+
   return (
     <AdminLayout appMode="club">
       <div className="container mx-auto py-4">

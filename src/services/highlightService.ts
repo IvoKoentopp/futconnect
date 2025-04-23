@@ -30,6 +30,29 @@ export interface HighlightVote {
 }
 
 export const highlightService = {
+  // Buscar todos os highlights de vários jogos de uma vez (em lote)
+  async getHighlightsForGames(gameIds: string[]): Promise<GameHighlight[]> {
+    if (!gameIds.length) return [];
+    const { data, error } = await supabase
+      .from('game_highlights')
+      .select(`
+        *,
+        member:member_id (
+          name,
+          nickname,
+          photo_url,
+          birth_date
+        ),
+        game:game_id (
+          date,
+          location,
+          club_id
+        )
+      `)
+      .in('game_id', gameIds);
+    if (error) throw error;
+    return data || [];
+  },
   // Inicializar os destaques para um jogo
   async initializeHighlights(gameId: string, participantIds: string[]): Promise<void> {
     console.log("Initializing highlights for game", gameId, "with participants", participantIds);

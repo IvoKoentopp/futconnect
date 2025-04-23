@@ -25,6 +25,7 @@ const GameHighlights: React.FC = () => {
   const [isVotingModalOpen, setIsVotingModalOpen] = useState(false);
   const [completedVotingGames, setCompletedVotingGames] = useState<Set<string>>(new Set());
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1); // mês corrente (1-12)
   const [firstGameYear, setFirstGameYear] = useState<number | null>(null);
   
   // Buscar o ano do primeiro jogo
@@ -51,44 +52,50 @@ const GameHighlights: React.FC = () => {
     }
   }, [firstGameYearData]);
 
-  // Buscar jogos realizados do ano selecionado
+  // Buscar jogos realizados do ano e mês selecionados
   const { data: games = [], isLoading } = useQuery({
-    queryKey: ['completed-games', clubId, selectedYear],
+    queryKey: ['completed-games', clubId, selectedYear, selectedMonth],
     queryFn: async () => {
-      const allGames = await gameService.fetchGames(clubId);
+      // Buscar jogos já filtrando por ano e mês se não for 'all'
+      let allGames = await gameService.fetchGames(clubId, selectedYear !== 'all' ? selectedYear : undefined);
       // Filtrar jogos realizados
-      const completedGames = allGames.filter(game => game.status === 'completed');
+      let completedGames = allGames.filter(game => game.status === 'completed');
       
       // Se selectedYear for 'all', retorna todos os jogos realizados
       if (selectedYear === 'all') {
         return completedGames;
       }
-      
-      // Caso contrário, filtra por ano
-      return completedGames.filter(game => {
-        const gameDate = new Date(game.date);
-        return gameDate.getFullYear().toString() === selectedYear;
-      });
+      // Filtrar por mês, se 'selectedMonth' não for 'all'
+      if (selectedMonth !== 0 && selectedMonth !== 13) {
+        completedGames = completedGames.filter(game => {
+          // Extrai o mês usando regex para aceitar qualquer formato ISO
+          const dateStr = typeof game.date === 'string' ? game.date : '';
+          const match = dateStr.match(/^\d{4}-(\d{2})/);
+          const monthNum = match ? Number(match[1]) : null;
+          return monthNum === selectedMonth;
+        });
+        // Log para depuração: mostra os jogos filtrados e suas datas
+        console.log('[GameHighlights] Jogos filtrados por mês:', selectedMonth, completedGames.map(g => ({id: g.id, date: g.date, status: g.status})));
+      }
+      return completedGames;
     },
     enabled: !!clubId,
   });
   
   // Buscar resultados de destaque para todos os jogos
   const { data: gameHighlights = {}, isLoading: isLoadingHighlights, refetch: refetchHighlights } = useQuery({
-    queryKey: ['game-highlights', clubId],
+    queryKey: ['game-highlights', clubId, selectedYear, selectedMonth, games.map(g => g.id).join(',')],
     queryFn: async () => {
+      if (!games.length) return {};
+      // Busca todos os highlights dos jogos filtrados em lote
+      const allHighlights = await highlightService.getHighlightsForGames(games.map(g => g.id));
+      // Monta um objeto: { [gameId]: highlightWinner | null }
       const highlights: Record<string, GameHighlight | null> = {};
-      
-      // Buscar o destaque vencedor para cada jogo
       for (const game of games) {
-        try {
-          const winner = await highlightService.getWinner(game.id);
-          highlights[game.id] = winner;
-        } catch (error) {
-          console.error(`Error fetching highlight for game ${game.id}:`, error);
-        }
+        // Pega o highlight vencedor (is_winner: true) desse jogo, se existir
+        const winner = allHighlights.find(h => h.game_id === game.id && h.is_winner === true) || null;
+        highlights[game.id] = winner;
       }
-      
       return highlights;
     },
     enabled: !!games.length,
@@ -283,10 +290,11 @@ const GameHighlights: React.FC = () => {
             Vote e acompanhe os destaques das partidas realizadas
           </div>
         </div>
-        <div className="mt-4 md:mt-0">
+        <div className="flex gap-2 mt-4 md:mt-0">
+          {/* Select de Ano */}
           <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Selecione o ano" />
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Ano" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os anos</SelectItem>
@@ -296,6 +304,19 @@ const GameHighlights: React.FC = () => {
               ).map(year => (
                 <SelectItem key={year} value={year}>
                   {year}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Select de Mês */}
+          <Select value={selectedMonth.toString()} onValueChange={v => setSelectedMonth(Number(v))}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                <SelectItem key={month} value={month.toString()}>
+                  {new Date(0, month - 1).toLocaleString('pt-BR', { month: 'long' })}
                 </SelectItem>
               ))}
             </SelectContent>
