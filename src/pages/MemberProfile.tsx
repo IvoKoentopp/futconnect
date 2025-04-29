@@ -42,7 +42,7 @@ import { useMemberGames } from '@/hooks/useMemberGames';
 import MemberFeesHistory from '@/components/MemberFeesHistory';
 import MemberGamesHistory from '@/components/MemberGamesHistory';
 import { Skeleton } from "@/components/ui/skeleton";
-import { differenceInYears, differenceInMonths, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInYears, differenceInMonths, differenceInDays, addYears, addMonths } from 'date-fns';
 import { formatDisplayDate, parseExactDate } from '@/lib/utils';
 
 const MemberProfile = () => {
@@ -277,7 +277,18 @@ const MemberProfile = () => {
         ? { 
             years: differenceInYears(departureDate, registrationDate),
             months: differenceInMonths(departureDate, registrationDate) % 12,
-            days: differenceInDays(departureDate, registrationDate) % 30,
+            days: (() => {
+              // Calcular corretamente os dias restantes
+              const years = differenceInYears(departureDate, registrationDate);
+              const months = differenceInMonths(departureDate, registrationDate) % 12;
+              
+              // Adicionar anos e meses à data de registro
+              let dateWithYearsAndMonths = addYears(registrationDate, years);
+              dateWithYearsAndMonths = addMonths(dateWithYearsAndMonths, months);
+              
+              // Calcular os dias restantes
+              return differenceInDays(departureDate, dateWithYearsAndMonths);
+            })(),
             isFormer: !!selectedMember.departure_date
           }
         : null,
