@@ -1438,7 +1438,9 @@ const GamePerformance = () => {
                                   {player.effectiveParticipationRate ? `${player.effectiveParticipationRate.toFixed(2)}%` : '0.00%'}
                                 </TableCell>
                                 <TableCell className="text-center">{player.games}</TableCell>
-                                <TableCell className="text-center">{(player.membershipTime / 365).toFixed(1)}</TableCell>
+                                <TableCell className="text-center">
+                                  {player.membershipYears.toFixed(3)}
+                                </TableCell>
                                 <TableCell className="text-center">{player.age}</TableCell>
                               </TableRow>
                             ))}
@@ -1534,7 +1536,9 @@ const GamePerformance = () => {
                                 <div className="space-y-2 pt-2 border-t">
                                   <div className="flex justify-between">
                                     <span className="text-sm text-muted-foreground">Tempo de Associação</span>
-                                    <span>{player.membershipTime} dias</span>
+                                    <span>
+                                      {player.membershipYears.toFixed(3)} anos
+                                    </span>
                                   </div>
                                   <div className="flex justify-between">
                                     <span className="text-sm text-muted-foreground">Idade</span>

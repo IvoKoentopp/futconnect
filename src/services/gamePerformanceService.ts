@@ -17,6 +17,7 @@ export interface TeamStats {
 export interface PlayerStats {
   id: string;
   name: string;
+  nickname?: string;
   games: number;
   goals: number;
   ownGoals: number;
@@ -37,6 +38,7 @@ export interface ParticipationRankingStats {
   points: number;
   games: number;
   membershipTime: number; // in days
+  membershipYears: number; // anos com precisão de 3 casas decimais
   age: number; // in years
   position: number;
   participationRate: number; // taxa absoluta (todos os jogos)
@@ -505,7 +507,7 @@ export const gamePerformanceService = {
       let dateFilter: DateFilter = {};
       
       // For calculating age and membership time, we need to use the end of the selected period
-      let referenceDate: Date;
+      let referenceDate: Date = new Date();
       
       if (year !== "all") {
         if (month !== "all") {
@@ -580,11 +582,19 @@ export const gamePerformanceService = {
       
       // Initialize data for all active members
       activeMembers.forEach(member => {
-        const registrationDate = new Date(member.registration_date);
+        // Calcular diretamente a diferença em dias entre a data atual e a data de registro
+        const hoje = new Date();
+        const dataRegistro = new Date(member.registration_date);
         const birthDate = new Date(member.birth_date);
         
-        // Calculate membership time in days up to the reference date
-        const membershipTimeDays = Math.floor((referenceDate.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
+        // Calcular a diferença em dias
+        const diferencaEmDias = Math.floor((hoje.getTime() - dataRegistro.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Calcular anos com precisão de 3 casas decimais (considerando anos bissextos)
+        const membershipYears = diferencaEmDias / 365.25;
+        
+        // Armazenar o valor dos dias para compatibilidade
+        const membershipTimeDays = diferencaEmDias;
         
         // Calculate age in years up to the reference date
         const ageInYears = Math.floor((referenceDate.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
@@ -596,6 +606,7 @@ export const gamePerformanceService = {
           points: 0,
           games: 0,
           membershipTime: membershipTimeDays > 0 ? membershipTimeDays : 0,
+          membershipYears: membershipYears > 0 ? membershipYears : 0,
           age: ageInYears > 0 ? ageInYears : 0,
           position: 0,
           participationRate: 0,
@@ -671,26 +682,44 @@ export const gamePerformanceService = {
         member.participationRate = fixedParticipationRate;
         member.effectiveParticipationRate = fixedEffectiveParticipationRate;
         
-        // Calculate months of membership up to the reference date
-        const registrationDate = new Date(activeMembers.find(m => m.id === memberId)!.registration_date);
-        const monthDiff = (referenceDate.getFullYear() - registrationDate.getFullYear()) * 12 + 
-          (referenceDate.getMonth() - registrationDate.getMonth());
+        // Obter a data de registro do membro
+        const memberData = activeMembers.find(m => m.id === memberId)!;
+        const registrationDate = new Date(memberData.registration_date);
+        
+        // Calcular o tempo de associação em anos
+        const today = new Date();
+        const diffInDays = Math.floor((today.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
+        const yearsOfMembership = diffInDays / 365.25;
         
         // Log calculation components for debugging
         console.log('Calculation components:', {
           participationRate: fixedParticipationRate,
           participationValue: Math.round(fixedParticipationRate * 1000),
-          membershipValue: monthDiff * 10,
+          yearsOfMembership: yearsOfMembership,
+          membershipValue: Math.round(yearsOfMembership * 100),
           ageValue: member.age,
-          totalValue: Math.round(fixedParticipationRate * 1000) + (monthDiff * 10) + member.age,
-          scoreValue: (Math.round(fixedParticipationRate * 1000) + (monthDiff * 10) + member.age) / 1000
+          totalValue: Math.round(fixedParticipationRate * 1000) + Math.round(yearsOfMembership * 100) + member.age,
+          scoreValue: (Math.round(fixedParticipationRate * 1000) + Math.round(yearsOfMembership * 100) + member.age) / 1000
         });
         
         // Calculate score using formula:
-        // (participationRate * 1000 + monthDiff * 10 + age) / 1000
+        // (participationRate * 1000 + yearsOfMembership * 100 + age) / 1000
+        // Usando o tempo de associação em anos com peso 100
         const participationValue = Math.round(fixedParticipationRate * 1000);
-        const membershipValue = monthDiff * 10;
+        const membershipValue = Math.round(yearsOfMembership * 100); // Tempo em anos * 100
         const ageValue = member.age;
+        
+        // Log para depuração (apenas para o Bruno)
+        if (member.name.includes('Bruno')) {
+          console.log('Dados do sócio Bruno:');
+          console.log('Taxa de participação:', fixedParticipationRate);
+          console.log('Valor da participação:', participationValue);
+          console.log('Tempo de associação em anos:', yearsOfMembership.toFixed(3));
+          console.log('Valor do tempo de associação:', membershipValue);
+          console.log('Idade:', ageValue);
+          console.log('Valor total:', participationValue + membershipValue + ageValue);
+          console.log('Pontuação final:', (participationValue + membershipValue + ageValue) / 1000);
+        }
         
         const totalValue = participationValue + membershipValue + ageValue;
         const scoreValue = totalValue / 1000;

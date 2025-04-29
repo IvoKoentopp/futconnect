@@ -96,18 +96,31 @@ export const useTopPlayers = (clubId: string | undefined, selectedYear: string =
           const ageDate = new Date(ageDiffMs);
           const age = Math.abs(ageDate.getUTCFullYear() - 1970);
           
-          // Calculate membership duration in months
+          // Calcular o tempo de associação em anos
           const registrationDate = new Date(member.registration_date);
-          const monthDiff = (new Date().getFullYear() - registrationDate.getFullYear()) * 12 + 
-            (new Date().getMonth() - registrationDate.getMonth());
+          const today = new Date();
+          const diffInDays = Math.floor((today.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
+          const yearsOfMembership = diffInDays / 365.25;
           
           // First convert participation rate to a fixed precision value (e.g., 85.7)
           const fixedParticipationRate = parseFloat(participationRate.toFixed(1));
           
-          // Nova fórmula de cálculo da pontuação
+          // Fórmula de cálculo da pontuação (igual ao ranking de participação)
           const participationValue = Math.round(fixedParticipationRate * 1000);
-          const membershipValue = monthDiff * 10;
+          const membershipValue = Math.round(yearsOfMembership * 100); // Tempo em anos * 100
           const ageValue = age;
+          
+          // Log para depuração (apenas para o Bruno)
+          if (member.name.includes('Bruno')) {
+            console.log('Dashboard - Dados do sócio Bruno:');
+            console.log('Taxa de participação:', fixedParticipationRate);
+            console.log('Valor da participação:', participationValue);
+            console.log('Tempo de associação em anos:', yearsOfMembership.toFixed(3));
+            console.log('Valor do tempo de associação:', membershipValue);
+            console.log('Idade:', ageValue);
+            console.log('Valor total:', participationValue + membershipValue + ageValue);
+            console.log('Pontuação final:', (participationValue + membershipValue + ageValue) / 1000);
+          }
           
           // Pontuação final dividida por 1000
           const score = (participationValue + membershipValue + ageValue) / 1000;
@@ -118,7 +131,7 @@ export const useTopPlayers = (clubId: string | undefined, selectedYear: string =
             nickname: member.nickname,
             score: Number(score.toFixed(2)), // Formatando para 2 casas decimais
             participationRate: fixedParticipationRate,
-            membershipMonths: monthDiff,
+            membershipMonths: Math.floor(yearsOfMembership * 12), // Convertendo anos para meses para compatibilidade
             age
           };
         });
