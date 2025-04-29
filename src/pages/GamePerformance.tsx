@@ -1439,7 +1439,7 @@ const GamePerformance = () => {
                                 </TableCell>
                                 <TableCell className="text-center">{player.games}</TableCell>
                                 <TableCell className="text-center">
-                                  {player.membershipYears.toFixed(3)}
+                                  {player.membershipYears.toFixed(2)}
                                 </TableCell>
                                 <TableCell className="text-center">{player.age}</TableCell>
                               </TableRow>
@@ -1537,7 +1537,7 @@ const GamePerformance = () => {
                                   <div className="flex justify-between">
                                     <span className="text-sm text-muted-foreground">Tempo de Associação</span>
                                     <span>
-                                      {player.membershipYears.toFixed(3)} anos
+                                      {player.membershipYears.toFixed(2)} anos
                                     </span>
                                   </div>
                                   <div className="flex justify-between">
