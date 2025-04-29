@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthorization } from "@/hooks/useAuthorization";
+import { resizeImage } from "@/utils/imageResizer";
 import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 import { ClubAdminSettings } from "./ClubAdminSettings";
@@ -125,20 +126,45 @@ export const ClubSettings = () => {
     }
 
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       setIsLoading(true);
       
-      // Gerar um nome único para o arquivo
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${uuidv4()}.${fileExt}`;
-      const filePath = `${user?.activeClub?.id}/${type}/${fileName}`;
+      let fileToUpload = file;
+      let filePath = '';
+      
+      // Se for uma logo, redimensionar para 200x200 pixels
+      if (type === 'logo') {
+        try {
+          // Redimensionar a imagem antes do upload (200x200 pixels)
+          fileToUpload = await resizeImage(file, 200, 200);
+          // Sempre usar jpg para padronizar e garantir melhor compressão
+          filePath = `${user?.activeClub?.id}/${type}/logo.jpg`;
+        } catch (resizeError) {
+          console.error('Erro ao redimensionar logo:', resizeError);
+          toast({
+            title: 'Erro ao processar imagem',
+            description: 'Não foi possível redimensionar a logo. Tente novamente.',
+            variant: 'destructive'
+          });
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        // Para outros tipos de arquivo (não imagens), manter o processamento original
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${uuidv4()}.${fileExt}`;
+        filePath = `${user?.activeClub?.id}/${type}/${fileName}`;
+      }
       
       // Upload do arquivo para o storage
       const { error: uploadError } = await supabase.storage
         .from('club-files')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload, { upsert: true });
       
       if (uploadError) {
         throw uploadError;

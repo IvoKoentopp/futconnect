@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MemberFormModal } from '@/components/MemberFormModal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import * as XLSX from 'xlsx';
+import { resizeImage } from '@/utils/imageResizer';
 import { 
   Search, 
   Phone,
@@ -358,22 +359,35 @@ const ListaSocios = () => {
       // Upload photo if changed
       let photoUrl = selectedMember.photo;
       if (photoFile) {
-        const fileExt = photoFile.name.split('.').pop();
-        const filePath = `${user?.activeClub?.id}/members/${selectedMember.id}/photo.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('photos')
-          .upload(filePath, photoFile, {
-            upsert: true
+        try {
+          // Redimensionar a imagem antes do upload (150x150 pixels)
+          const resizedFile = await resizeImage(photoFile, 150, 150);
+          
+          // Sempre usar jpg para padronizar e garantir melhor compressão
+          const filePath = `${user?.activeClub?.id}/members/${selectedMember.id}/photo.jpg`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('club-files')
+            .upload(filePath, resizedFile, {
+              upsert: true
+            });
+            
+          if (uploadError) throw uploadError;
+          
+          const { data: { publicUrl } } = supabase.storage
+            .from('club-files')
+            .getPublicUrl(filePath);
+            
+          photoUrl = publicUrl;
+        } catch (resizeError) {
+          console.error('Erro ao redimensionar imagem:', resizeError);
+          toast({
+            title: 'Erro ao processar imagem',
+            description: 'Não foi possível redimensionar a imagem. Tente novamente.',
+            variant: 'destructive'
           });
-          
-        if (uploadError) throw uploadError;
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('photos')
-          .getPublicUrl(filePath);
-          
-        photoUrl = publicUrl;
+          throw resizeError;
+        }
       }
       
       // Update member data
