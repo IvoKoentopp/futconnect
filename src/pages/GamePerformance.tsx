@@ -571,7 +571,7 @@ const GamePerformance = () => {
   
   useEffect(() => {
     const fetchStats = async () => {
-      if (!clubId) return;
+      if (!clubId || !(activeTab === 'teams' || activeTab === 'players')) return;
       
       setIsLoading(true);
       
@@ -595,9 +595,8 @@ const GamePerformance = () => {
     };
     
     fetchStats();
-  }, [clubId, selectedYear, selectedMonth]);
-  
-  // Fetch participation ranking stats (now affected by year/month filters)
+  }, [clubId, selectedYear, selectedMonth, activeTab]);
+
   useEffect(() => {
     const fetchParticipationRanking = async () => {
       if (!clubId) return;
@@ -1116,7 +1115,8 @@ const GamePerformance = () => {
                                     <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full 
                                       ${index === 0 ? 'bg-amber-100 text-amber-800' : 
                                         index === 1 ? 'bg-slate-200 text-slate-800' : 
-                                        'bg-amber-900/20 text-amber-900'}`
+                                        index === 2 ? 'bg-amber-900/20 text-amber-900' :
+                                        'bg-gray-100 text-gray-600'}`
                                     }>
                                       {index + 1}
                                     </div>
