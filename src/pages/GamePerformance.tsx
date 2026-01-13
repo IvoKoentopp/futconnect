@@ -599,7 +599,7 @@ const GamePerformance = () => {
 
   useEffect(() => {
     const fetchParticipationRanking = async () => {
-      if (!clubId) return;
+      if (!clubId || activeTab !== 'participation') return;
       
       setIsLoadingParticipation(true);
       
@@ -617,14 +617,11 @@ const GamePerformance = () => {
       }
     };
     fetchParticipationRanking();
-  }, [clubId, selectedYear, selectedMonth]);
+  }, [clubId, selectedYear, selectedMonth, activeTab]);
 
   useEffect(() => {
     const fetchHighlights = async () => {
-      if (!clubId || activeTab !== 'highlights') {
-        setIsLoadingHighlights(false);
-        return;
-      }
+      if (!clubId || activeTab !== 'highlights') return;
       setIsLoadingHighlights(true);
       try {
         // Buscar destaques diretamente na tabela game_highlights
