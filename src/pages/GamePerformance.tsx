@@ -621,12 +621,7 @@ const GamePerformance = () => {
 
   useEffect(() => {
     const fetchHighlights = async () => {
-      if (!clubId) {
-        toast({
-          variant: "destructive",
-          title: "Clube não selecionado",
-          description: "Por favor, selecione um clube para ver os destaques."
-        });
+      if (!clubId || activeTab !== 'highlights') {
         setIsLoadingHighlights(false);
         return;
       }
@@ -694,7 +689,7 @@ const GamePerformance = () => {
       }
     };
     fetchHighlights();
-  }, [clubId, selectedYear, selectedMonth]);
+  }, [clubId, selectedYear, selectedMonth, activeTab]);
 
   return (
     <AdminLayout appMode="club">
@@ -1446,25 +1441,6 @@ const GamePerformance = () => {
                             ))}
                           </TableBody>
                         </Table>
-                      </div>
-
-                      <div className="mt-6 p-4 bg-slate-50 rounded-md border">
-                        <h3 className="font-medium text-slate-900 mb-2">Cálculo de Participação</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="bg-white p-3 rounded border">
-                            <span className="font-semibold">Taxa de Participação Total:</span>
-                            <p className="text-sm text-slate-600 mt-1">Porcentagem de jogos que o sócio participou em relação ao total de jogos do clube no período selecionado.</p>
-                            <p className="text-sm text-slate-600 mt-1">Exemplo: Se o clube realizou 20 jogos e o sócio participou de 15, sua taxa é de 75%.</p>
-                          </div>
-                          <div className="bg-white p-3 rounded border">
-                            <span className="font-semibold">Taxa de Participação Efetiva:</span>
-                            <p className="text-sm text-slate-600 mt-1">Porcentagem de jogos que o sócio participou considerando apenas os jogos realizados após sua data de associação ao clube.</p>
-                            <p className="text-sm text-slate-600 mt-1">Exemplo: Se após a associação ocorreram 10 jogos e o sócio participou de 8, sua taxa efetiva é de 80%.</p>
-                          </div>
-                        </div>
-                        <div className="mt-3 text-sm text-slate-600">
-                          <p><span className="font-medium">Critérios de ordenação:</span> A tabela pode ser ordenada por pontos, taxa de participação total ou taxa de participação efetiva.</p>
-                        </div>
                       </div>
 
                       {/* Mobile view */}
